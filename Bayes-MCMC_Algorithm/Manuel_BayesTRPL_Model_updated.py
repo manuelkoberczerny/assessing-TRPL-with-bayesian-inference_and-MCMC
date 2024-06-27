@@ -21,7 +21,6 @@ warnings.filterwarnings('ignore')
 def root_finder_loop_perform(D, a, b, thickness, noroots):
     # Define an Aesara expression for the function to be rooted
     def f(x, D, a, b, thickness):
-        #return (np.tan(x*thickness)+(D*(a)*x)/(b-D**2*x**2))**2
         return (np.tan(x*thickness)+(D*(a)*x)/((a/2)**2*b-D**2*x**2))**2
 
     x_sol1 = np.sort(shgo(f,bounds=[(0,0.8*np.pi/(thickness))], args = (D, a, b, thickness), sampling_method='sobol', n=1000).xl.flatten())
@@ -214,8 +213,6 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     # Surface recombination velocities are defined as the sum (S_sum), the ratio of sum and product (S_sumprod_ratio) and
     S_sum_model = pm.Deterministic('S_sum_model', 1*(1+pm.LogNormal('S_sum_factor', 3, 3)))
    
-    #S_sumprod_ratio_factor = pm.Beta('S_sumprod_ratio_factor', 1, 1)
-    #S_sumprod_ratio_model = pm.Deterministic('S_sumprod_ratio_model', at.switch(at.ge(S_sumprod_ratio_factor, 1), 1, S_sumprod_ratio_factor))
     S_sumprod_ratio_model = pm.Deterministic('S_sumprod_ratio_model', 1e-5+(1-1e-5)*pm.Beta('S_sumprod_ratio_factor', 2, 2))
     
     S_mix = pm.Bernoulli('S_mix',0.5)
@@ -223,16 +220,10 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     ## Calculate both surface recombination velocities from S_sum and S_b
     S_a = pm.Deterministic('S_low', (S_sum_model - at.sqrt(S_sum_model**2 *(1 - S_sumprod_ratio_model)))/2)
     S_b = pm.Deterministic('S_high', (S_sum_model + at.sqrt(S_sum_model**2 *(1 - S_sumprod_ratio_model)))/2)
-
-    #S_a = at.switch(at.lt(S_a, 0.1), 0, S_a)
-    #S_b = at.switch(at.lt(S_a, 0.1), S_sum_model, S_b)
     
     # Effective S_front
     S_1 = pm.Deterministic('S_1', S_a*(1-S_mix) + S_b*S_mix)
     S_2 = pm.Deterministic('S_2', S_a*S_mix + S_b*(1-S_mix))
-
-    #S_1 = pm.Deterministic('S_1', 0.1*(1+pm.LogNormal('S1_fact',4,4)))
-    #S_2 = pm.Deterministic('S_2', 0.1*(1+pm.LogNormal('S2_fact',4,4)))
    
     S_front_value = at.switch(at.eq(Surface, 1),  S_1,  S_2)
 
@@ -242,16 +233,12 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
 
     # Reabsorption
 
-    escape_prob_fact = pm.Beta('escape_prob_fact', 2, 2, shape=2)
-    #escape_prob_choose = pm.Bernoulli('escape_prob_choose',0.5)
-    
-    #escape_prob = pm.Deterministic('escape_prob', at.switch(at.eq(escape_prob_choose, 0), [escape_prob_fact,1], [1,escape_prob_fact] ))
+    escape_prob_fact = pm.Beta('escape_prob_fact', 2, 2, shape=2)   
     escape_prob = pm.Deterministic('escape_prob', escape_prob_fact)
     
     escape_prob_front = at.switch(at.eq(Surface,1), escape_prob[0], escape_prob[1])
     escape_prob_front = at.switch(at.eq(reabsorption_option,0), at.ones(shape=at.shape(escape_prob_front)), escape_prob_front)
     P_esc = at.outer(escape_prob_front, at.ones(shape=at.shape(z_array)))
-    #P_esc = at.outer(escape_prob_front, np.exp(-pm.LogNormal('alpha_reabs', 6,2)*z_array))
     P_esc_3d = P_esc.dimshuffle('x', 1, 0)
     P_esc_3d.broadcastable
     (True, False, False)
@@ -263,10 +250,9 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     
         
     ## Calculate 'beta'-values of the Eigenvalue function
-    #b = at.switch(at.lt(S_a, 0.1), 0, S_sumprod_ratio_model)
 
-    a = S_sum_model#S_1+S_2
-    b = S_sumprod_ratio_model#(S_1*S_2)/((a/2)**2)
+    a = S_sum_model
+    b = S_sumprod_ratio_model
     
     beta_model = beta_rootfinder(thickness, a, b, Diffusion_coefficient, 7)    
     beta_0 = pm.Deterministic('beta_0', beta_model[0])
@@ -283,8 +269,6 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
    
     
     ## This part calculates the A_param, which will take care of the ratios of U_z functions, so the total sum ends up in cm-3
-    #Fluence_error = pm.Deterministic('Fluence_error', 0.9+pm.Beta('Fluence_err_fact',2, 2, shape=2)/5)
-    #Fluence_error_front = 1#at.switch(at.eq(Surface, 1),  Fluence_error[0],  Fluence_error[1])
     Fluence_3d = (Fluence*Absorption_coeff).dimshuffle(0,'x','x')
     Fluence_3d.broadcastable
     (False,  True, True)
@@ -349,26 +333,13 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
             nt = at.switch(at.le(nt, 0), 0, nt)
             nt = at.switch(at.ge(nt, N_t), N_t, nt)
             
-            #f_t = n_dens/(n_dens + kc_p/kc_n*p_dens + ne_1)
             f_t = nt/N_t
-
-            #f_t = at.switch(at.eq(eq_carr[1], 0), nt/N_t, n_dens/(n_dens + kc_p/kc_n*p_dens + ne_1))
-            
-            
-            #n_dens = n_dens + n_eq[0]
-            #p_dens = nt + n_dens
-            #bckg = n_eq[0]*(n_eq[0]+n_eq[1])
 
             R_rad = - krad*p_esc*(n_dens*p_dens - eq_carr[0]*eq_carr[1])
             R_aug = - k_aug*(p_dens**2 *n_dens + n_dens**2 *p_dens)
                  
             dn_dt = R_rad - kc_n*n_dens*(1-f_t) + kc_n*f_t*ne_1 + R_aug
             dp_dt = R_rad - kc_p*p_dens*f_t + R_aug 
-
-            #dnt_dt = kc_n*n_dens*(1-nt/N_t) - kc_n*nt/N_t*ne_1 - kcp_fact*kc_n*p_dens*nt/N_t
-            
-            #dn_dt = - krad*n_dens*(p_esc*p_dens + n_eq) - kc_n*(n_dens*p_dens*kcp_fact)/(n_dens + kcp_fact*p_dens + ne_1)  - k_aug*(n_dens**2*n_eq + n_eq**2*n_dens)
-            #dp_dt = - krad*n_dens*(p_esc*p_dens + n_eq) -  kc_n*(n_dens*p_dens*kcp_fact)/(n_dens + kcp_fact*p_dens + ne_1) - k_aug*(p_dens**2*n_eq + n_eq**2*p_dens)
                             
             return dn_dt, dp_dt
       
@@ -396,16 +367,7 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     
     PL_err = pm.Deterministic('PL_err', bckg_list/ (1 + pm.LogNormal('PL_err_fact', 0, 2, shape=at.shape(bckg_list))))
     PL_err_2d = at.outer(at.ones(shape=at.shape(time)), PL_err)
-    
-    #PL_0_calc1 = k_rad_model*n_0z**2*P_esc + k_rad_model*n_0z*n_eq_model
-    #PL_0_calc2 = at.sum(((PL_0_calc1[:,1:] + PL_0_calc1[:,:-1])/2*z_array_diff_2d),axis=1)
-    #PL_0_calc2_2d = PL_0_calc2.dimshuffle('x',0)
-    #PL_0_calc2_2d.broadcastable
-    #(True, False)
-    
-    
-    #PL_0z = PL_0_calc2*(1 - PL_err)
-    
+       
     
     def multiple_pulses(n_tz0, p_tz0, n_tz0_1, n_tz0_2, dt, n_0z, kc_n, kc_p, n_em_1, k_rad_model, k_aug, N_t, p_esc):
     
@@ -437,13 +399,7 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     P_bckg = at.switch(at.le(P_bckg, 0), 0, P_bckg)
 
     N_eq = [N_bckg, P_bckg]
-
-    print(N_eq[0].eval())
-    print(N_eq[1].eval())
         
-    n_eq_models = pm.Deterministic('n_eq_models', N_bckg)
-    n_eq_models = pm.Deterministic('p_eq_models', P_bckg)
-
     result_PL, _ = pytensor.scan(fn=total_recombination_rate,
                                             sequences=[n_tz0[:,:,:-1].T, n_tz0[:,:,1:].T, dt],
                                             outputs_info=[n_0z.T, n_0z.T],
@@ -456,8 +412,6 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     p_tz_init = (n_0z.T).dimshuffle('x', 0, 1)
     P_calc = at.concatenate([p_tz_init, result_PL[1]], axis=0)
 
-    #N_calc = result_PL[0][-1,:,:,:]
-    #P_calc = result_PL[1][-1,:,:,:]
     N_bckg = N_bckg.dimshuffle('x', 'x', 0)
     N_bckg.broadcastable
     (True, True, False)
@@ -465,11 +419,7 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     P_bckg = P_bckg.dimshuffle('x', 'x', 0)
     P_bckg.broadcastable
     (True, True, False)
-    
-    #ft_mean = at.mean(result_PL[0][-2,-1,:]/(result_PL[0][-2,-1,:] + kc_p*result_PL[1][-2,-1,:] + n_em_1), axis=0)
-
-    #ft_save = pm.Deterministic('ft_means', N_bckg)
-    
+        
     
     Rrad_calc = (N_calc+N_bckg)*(P_calc+P_bckg)-N_bckg*P_bckg#-(N_bckg*(N_bckg+N_trapped))
 
@@ -479,8 +429,6 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     PL_0 = PL_calc[0,:]*(1-PL_err)
 
     PL_obs = PL_calc/PL_0 + PL_err_2d
-
-    #PL_obs = at.switch(at.le(PL_calc_norm, PL_err_2d), PL_err_2d, PL_calc_norm)
     
     return PL_obs
 
@@ -512,7 +460,6 @@ def glm_mcmc_inference_diffusion_full(Data_fit, a, Fluence, Surface, Thickness, 
         #potential = pm.Potential('sigma_potential', sigma_width)
         
         sigma_width = at.outer(at.ones(shape=len(time)), sigma_width)
-        #log_lik_scaling = 0.5 + 0.5*pm.Beta('log_lik_scaling', 2,2)
         
         y_combined = at.as_tensor_variable(y_combined)        
 

@@ -296,12 +296,6 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     # Radiative Recombination Rate
     k_rad_model = pm.Deterministic('k_rad_model', 1e-9*pm.Beta('k_rad_model_fact',2, 2))
 
-    #n_eq_model = Fluence*pm.LogNormal('n_eq_model_fact', 2, 1)
-    #n_eq_min = pm.Deterministic('n_eq_model', at.min(n_eq_model))
-    #n_eq_model = (n_eq_model).dimshuffle(0,'x')
-    #n_eq_model.broadcastable
-    #(False, True)
-
     N_t_model = pm.LogNormal('N_t_model', 35, 3) 
     
     kc_n = pm.LogNormal("kc_n_rate", 10, 3)
@@ -312,13 +306,8 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     trap_depth = pm.Deterministic('trap_depth', pm.Beta('trap_depth_fact', 1, 1)*0.5)  # in eV
     n_em_1 = 1e18 * at.exp(-trap_depth/(8.62e-5 * 292))
     
-    
-    ## turn diffusion/surface recombination into a correctoin factor
     dt = at.extra_ops.diff(time).T
-    n_tz0_1 = n_tz0[:,:,:-1]
-    n_tz0_2 = n_tz0[:,:,1:]
-          
-    
+
     ### Looping over time-domain
     def total_recombination_rate(n_tz0_1, n_tz0_2, dt_current, n_dens, p_dens, kc_n, kc_p, ne_1, krad, N_t, p_esc, k_aug, n_eq):
       
@@ -370,11 +359,7 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
        
     
     def multiple_pulses(n_tz0, p_tz0, n_tz0_1, n_tz0_2, dt, n_0z, kc_n, kc_p, n_em_1, k_rad_model, k_aug, N_t, p_esc):
-    
-        #n_tz_init = n_0z + n_tz0[-1,:,:]
-        #p_tz_init = p_0z p_tz0[-1,:,:]
-        
-        
+           
         result_inner, _ = pytensor.scan(fn=total_recombination_rate,
                                             sequences=[n_tz0_1, n_tz0_2, dt],
                                             outputs_info=[n_0z + n_tz0[-1,:], n_0z + p_tz0[-1,:]],
@@ -395,7 +380,7 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     N_bckg = result_outer[0][-1,-1,:]
     N_bckg = at.switch(at.le(N_bckg, 0), 0, N_bckg)
     
-    P_bckg = result_outer[1][-1,-1,:] #- result_outer[0][-1,-1, 0,:]
+    P_bckg = result_outer[1][-1,-1,:]
     P_bckg = at.switch(at.le(P_bckg, 0), 0, P_bckg)
 
     N_eq = [N_bckg, P_bckg]
@@ -421,7 +406,7 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     (True, True, False)
         
     
-    Rrad_calc = (N_calc+N_bckg)*(P_calc+P_bckg)-N_bckg*P_bckg#-(N_bckg*(N_bckg+N_trapped))
+    Rrad_calc = (N_calc+N_bckg)*(P_calc+P_bckg)-N_bckg*P_bckg
 
     
     PL_calc = at.sum(((Rrad_calc[:,1:,:] + Rrad_calc[:,:-1,:])/2*z_array_diff_3d), axis=1)
@@ -457,7 +442,6 @@ def glm_mcmc_inference_diffusion_full(Data_fit, a, Fluence, Surface, Thickness, 
         ## Likelihood Function Student-T Distribution)
        
         sigma_width = pm.Deterministic('sigma_width', 0.05/(1+pm.LogNormal('sigma_width_fact', 1, 2, shape=len(Surface))))            
-        #potential = pm.Potential('sigma_potential', sigma_width)
         
         sigma_width = at.outer(at.ones(shape=len(time)), sigma_width)
         

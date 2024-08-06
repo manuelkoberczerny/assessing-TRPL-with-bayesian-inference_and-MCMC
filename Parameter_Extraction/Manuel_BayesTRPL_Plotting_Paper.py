@@ -3,13 +3,10 @@ folder = os.getcwd()
 
 import numpy as np
 import pandas as pd
-import pymc as pm
 import arviz as az
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import cm
 import matplotlib.gridspec as gridspec
-from matplotlib.lines import Line2D
-import random
 from scipy import stats
 from scipy.optimize import root
 
@@ -28,7 +25,7 @@ def plot_loghist(a, ax_a, log, colour):
     a = a.ravel()
     
     if log == 'log':
-        bins = np.logspace(np.log10(a.min()/5), np.log10(a.max()*5),50)
+        bins = np.logspace(np.log10(a.min()/1.5), np.log10(a.max()*1.5),50)
     
     else:
         bins = np.linspace(a.min(), a.max(),50)
@@ -163,11 +160,10 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     # DataFrame to save all draws
     df_save = pd.DataFrame()
     
-    final_sample_no = 9000
+    final_sample_no = 1000
 
     # Setup of Figure
     fig_final = plt.figure(figsize=(24*centimeters, 32*centimeters))
-    #plt.subplots_adjust(wspace=0.2, hspace=0.1)
     
     gs_final_combined = fig_final.add_gridspec(2,1, height_ratios=[1,3.3])
     gs_final_main = gs_final_combined[0].subgridspec(1,6)
@@ -193,52 +189,38 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     ax_ylabel.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
 
     ax_mob = fig_final.add_subplot(gs_final[2, 2:4])
-    #ax_mob.set_xlabel('Mobility [cm² (Vs)⁻¹]')
-    ax_mob.annotate('(i) $\Sigma\mu_{\mathrm{vert}}$ [cm$^2$ (Vs)$^{-1}$]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
+    ax_mob.annotate('(i) $\mu_{\mathrm{vert}}$ [cm$^2$ (Vs)$^{-1}$]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
 
     ax_tau = fig_final.add_subplot(gs_final[1, 0:2])
-    #ax_tau.set_xlabel('$k_{\mathrm{tr}}$ [s$^{-1}$]')
     ax_tau.annotate('(e) $k_{\mathrm{tr}}$ [s$^{-1}$]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
 
     ax_krad = fig_final.add_subplot(gs_final[0, 0:2])
-    #ax_krad.set_xlabel('$k_{\mathrm{rad}}$ (cm$^{3}$s$^{-1}$)')
-    #ax_krad.annotate('(b) $k_{\mathrm{rad}}$ [cm$^{3}$s$^{-1}$]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
 
     ax_pesc = fig_final.add_subplot(gs_final[0, 4:6])
-    #ax_pesc.set_xlabel('$p_{\mathrm{esc}}$ [-]')
     ax_pesc.annotate('(d) $P_{\mathrm{esc}}$ [-]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
 
     ax_Ssub = fig_final.add_subplot(gs_final[1, 4:6])
-    #ax_Ssub.set_xlabel('SRV [cm s$^{-1}$]')
     ax_Ssub.annotate('(g) SRV [cm s$^{-1}$]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
 
     ax_neq = fig_final.add_subplot(gs_final[0, 2:4])
-    #ax_neq.set_xlabel('$n_{\mathrm{eq}}$ [cm$^{-3}$]')
     ax_neq.annotate('(c) $N_{\mathrm{t}}$ [cm$^{-3}$]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
 
     ax_td = fig_final.add_subplot(gs_final[1, 2:4])
-    #ax_td.set_xlabel('$\Delta E_{\mathrm{t}}$ [eV]')
-    #ax_td.set_xlim(0,0.5)
     ax_td.annotate('(f) $\Delta E_{\mathrm{t}}$ [meV]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
 
     ax_diffl = fig_final.add_subplot(gs_final[2, 4:6])
-    #ax_diffl.set_xlabel('$L_{\mathrm{D}}$ [$\mu m$]')
     ax_diffl.annotate('(j) $L_{\mathrm{D,1sun}}$ [$\mu m$]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
 
     ax_LL = fig_final.add_subplot(gs_final[3, 0:2])
-    #ax_LL.set_xlabel('-log(likelihood) [-]')
     ax_LL.annotate('(k) -log($LL$)$_{\mathrm{av}}$ [-]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
 
     ax_fluerr = fig_final.add_subplot(gs_final[2, 0:2])
-    #ax_fluerr.set_xlabel('$\epsilon_{\mathrm{F}}$ [%]')
     ax_fluerr.annotate('(h) $k_{\mathrm{aug}}$ [cm$^6$ s$^{-1}$]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
 
     ax_sigmaLL = fig_final.add_subplot(gs_final[3, 2:4])
-    #ax_sigmaLL.set_xlabel('$\sigma_{\mathrm{LL}}$ [a.u]')
-    ax_sigmaLL.annotate('(l) $\sigma_{\mathrm{LL,med.}}$ [a.u]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
+    ax_sigmaLL.annotate('(l) $\sigma_{\mathrm{LL,bckg}}$ [a.u]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
     
     ax_PL_err = fig_final.add_subplot(gs_final[3, 4:6])
-    #ax_PL_err.set_xlabel('$\epsilon_{\mathrm{PL}}$ [a.u.]')
     ax_PL_err.annotate('(m) $\epsilon_{\mathrm{PL,med.}}$ [a.u.]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
   
     
@@ -246,19 +228,10 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
 
     # Bulk Recombination
     k_rad_model_values = df_save['k_rad(cm3s-1)'] = trace.posterior.k_rad_model.values[:,-final_sample_no:].ravel()       
-    #p_D_calc = np.nanmin(np.abs(trace.posterior.p_eq_models.values[:,-final_sample_no:]), axis=2).ravel()
-
-    #print(np.nanmedian(trace.posterior.p_eq_models.values[:,-final_sample_no:], axis=[0,1]))
-
-    #p_D_min = np.min(p_D_calc[np.where(p_D_calc > 0)])
-    #p_D_calc[p_D_calc == 0] = p_D_min
-    #p_D_model_values = df_save['p_D_min(cm-3)'] = trace.posterior.N_t_model.values[:,-final_sample_no:].ravel()
 
     N_t_model_values = df_save['N_t(cm-3)'] = trace.posterior.N_t_model.values[:,-final_sample_no:].ravel()
 
     k_aug_model_values = df_save['k_aug(cm6s-1)'] = trace.posterior.k_aug.values[:,-final_sample_no:].ravel()  
-
-    #N_t = np.median(trace.posterior.n_eq_models.values[:,-final_sample_no:]/trace.posterior.ft_means.values[:,-final_sample_no:], axis=[0,1])
 
 
     kc_n_model_values = df_save['kn_trapping(s-1)'] = trace.posterior.kc_n_rate.values[:,-final_sample_no:].ravel()
@@ -273,7 +246,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
 
     def k_nr1sun_estimate(p, n, kc_n, kc_p, ne1, Nt):
         p += n
-        #ft = n/(n + kc_p/kc_n*p + ne1)
         ft = (p-n)/Nt
 
         return kc_n*n*(1-ft) - kc_n*ft*ne1 - kc_p*p*ft
@@ -281,11 +253,10 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     for i in np.arange(len(kc_n_model_values)):
         solv = root(k_nr1sun_estimate, one_sun_carrier_density, args=(one_sun_carrier_density, kc_n_model_values[i], kc_p_model_values[i], n1_est[i], N_t_model_values[i]))
         k_nr1sun = np.append(k_nr1sun, kc_p_model_values[i]*(one_sun_carrier_density + solv.x)/(one_sun_carrier_density+kc_p_model_values[i]/kc_n_model_values[i]*(one_sun_carrier_density +solv.x) + n1_est[i]))
-        k_bulk = k_nr1sun + k_rad_model_values[i]*(one_sun_carrier_density)
+        k_bulk = k_nr1sun + k_rad_model_values[i]*(one_sun_carrier_density + solv.x)
 
-    df_save['k_nr1sun(s-1)'] = k_nr1sun #= kc_p_model_values*one_sun_carrier_density/(one_sun_carrier_density + kc_p_model_values/kc_n_model_values*one_sun_carrier_density + n1_est)
-    df_save['k_bulk1sun(s-1)'] = k_bulk #= df_save['k_nr1sun(s-1)']  + k_rad_model_values*(one_sun_carrier_density)
-
+    df_save['k_nr1sun(s-1)'] = k_nr1sun
+    df_save['k_bulk1sun(s-1)'] = k_bulk
     
     ## Surface Recombination
     S_mix_model_values = df_save['S_mix'] = trace.posterior.S_mix.values[:,-final_sample_no:].ravel()
@@ -312,7 +283,7 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     
     ## Diffusion
     Diffusion_coeff_values = trace.posterior.Diffusion_coefficient.values[:,-final_sample_no:].ravel()
-    Mobility_values = df_save['Mobility_values(cm2V-1s-1)'] = 2*trace.posterior.mu_vert.values[:,-final_sample_no:].ravel()
+    Mobility_values = df_save['Mobility_values(cm2V-1s-1)'] = trace.posterior.mu_vert.values[:,-final_sample_no:].ravel()
     Diffusion_length = df_save['Diffusion_length(um)'] = np.sqrt(Diffusion_coeff_values/k_bulk)*1e4
     df_save['beta_1(-)'] = trace.posterior.beta_0.values[:,-final_sample_no:].ravel()*Thickness*1e-7
 
@@ -338,47 +309,52 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     df_save['LL'] = LL.ravel()
     df_save['LL_av'] = LL_norm.ravel()
     
+
+    df_save[f'sigma_LL'] = trace.posterior.sigma_width.values[:,-final_sample_no:].ravel()
+
+
     # sigmas and PL_err
     for i in np.arange(len(Surface)):
-        df_save[f'sigma_LL_{i}'] = trace.posterior.sigma_width.values[:,-final_sample_no:,i].ravel()
+        #
         df_save[f'PL_err_{i}'] =  trace.posterior.PL_err.values[:,-final_sample_no:,i].ravel()
 
 
 
     ### Plotting the Probability Densities
-    #ax_mob.plot(plot_kernel_1D(Mobility_values)[0], plot_kernel_1D(Mobility_values)[1], c=color_prism[0], linewidth=2, alpha=0.8)
-    plot_loghist(Mobility_values, ax_mob, 'log', color_prism[0])
+    plot_loghist(Mobility_values, ax_mob, 'lin', color_prism[0])
     ax_mob.annotate(print_function(Mobility_values, 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
 
-    #ax_krad.plot(plot_kernel_1D(k_rad_model_values)[0], plot_kernel_1D(k_rad_model_values)[1], c=color_prism[0], linewidth=2, alpha=0.8)
     plot_loghist(k_rad_model_values, ax_krad, 'log', color_prism[0])
-    #ax_neq.plot(plot_kernel_1D(N_t_model_values)[0], plot_kernel_1D(N_t_model_values)[1], c='dimgrey', linewidth=2, alpha=0.8)
-    #ax_neq.plot(plot_kernel_1D(p_D_model_values)[0], plot_kernel_1D(p_D_model_values)[1], c=color_prism[2], linewidth=2, alpha=0.8)
     plot_loghist(N_t_model_values, ax_neq, 'log', color_prism[0])
     
     ax_neq.annotate(print_function(N_t_model_values, 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
-    #ax_neq.annotate(str('$p_{\mathrm{D,min}}$: ' + print_function(p_D_model_values, 'log')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[2])
 
 
 
 
     if reabs_option == 'Yes':
-
+        
         p_esc1 = df_save['p_esc1(-)'] = trace.posterior.escape_prob.values[:,-final_sample_no:,0].ravel()
         p_esc2 = df_save['p_esc2(-)'] = trace.posterior.escape_prob.values[:,-final_sample_no:,1].ravel()  
 
-        plot_loghist(p_esc1, ax_pesc, 'log', color_prism[0])
-        plot_loghist(p_esc2, ax_pesc, 'log', color_prism[1])
 
-        #ax_pesc.plot(plot_kernel_1D(p_esc1)[0], plot_kernel_1D(p_esc1)[1], c=color_prism[0], linewidth=2, alpha=0.8)
-        #ax_pesc.plot(plot_kernel_1D(p_esc2)[0], plot_kernel_1D(p_esc2)[1], c=color_prism[1], linewidth=2, alpha=0.8)
+        p_combined = np.stack([p_esc1, p_esc2]).ravel()
+    
+        bins = np.logspace(np.log10(p_combined.min()/5), 0, 50)
+
+        p1,_,_ = ax_pesc.hist(p_esc1, bins=bins, color=color_prism[0], alpha=0.6)
+        p2,_,_ = ax_pesc.hist(p_esc2, bins=bins, color=color_prism[1], alpha=0.6)
+        
+
+        x_array = np.array([p1.max(),p2.max()])
+        ax_pesc.set_ylim(bottom=0, top=2*x_array.max())
+        ax_pesc.set_yticks([])
+
         ax_pesc.annotate(str("$S_{\mathrm{" + side_1 + "}}:$ " + print_function(p_esc1, 'log')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
         ax_pesc.annotate(str("$S_{\mathrm{" + side_2 + "}}:$ " + print_function(p_esc2, 'log')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[1])
         
         ax_krad.annotate('(b) $k_{\mathrm{rad}}$ [cm$^{3}$s$^{-1}$]' ,[0.05, 0.88] , xycoords='axes fraction', fontsize=fontsize_base+1)
-        ax_krad.annotate(str('$k_{\mathrm{rad}}: $ ' + print_function(k_rad_model_values, 'log')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
-        #ax_krad.annotate(str('$k_{\mathrm{rad}}$(' + "$S_{\mathrm{" + side_1 + "}}$ " + '): ' + print_function(k_rad_model_values*p_esc1, 'log')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c='dimgrey')
-        #ax_krad.annotate(str('$k_{\mathrm{rad}}$(' + "$S_{\mathrm{" + side_2 + "}}$ " + '): ' + print_function(k_rad_model_values*p_esc2, 'log')),[0.1, 0.62] , xycoords='axes fraction', fontsize=fontsize_base-2, c='dimgrey')
+        ax_krad.annotate(str(print_function(k_rad_model_values, 'log')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
 
     else:
         p_esc1 = df_save['p_esc1(-)'] = np.ones(shape=np.shape(k_rad_model_values))
@@ -395,13 +371,9 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
 
 
 
-    #ax_td.plot(plot_kernel_1D(trap_depth_model_values*1000)[0], plot_kernel_1D(trap_depth_model_values*1000)[1], c=color_prism[0], linewidth=2, alpha=0.8)
     plot_loghist(trap_depth_model_values*1000, ax_td, 'lin', color_prism[0])
     ax_td.annotate(print_function(trap_depth_model_values*1000, 'lin'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
-    
-    #ax_tau.plot(plot_kernel_1D(kc_n_model_values)[0], plot_kernel_1D(kc_n_model_values)[1], c=color_prism[0], alpha=0.8, linewidth=2)
-    #ax_tau.plot(plot_kernel_1D(kc_p_model_values)[0], plot_kernel_1D(kc_p_model_values)[1], c=color_prism[2], alpha=0.8, linewidth=2)
-    #ax_tau.plot(plot_kernel_1D(k_nr1sun)[0], plot_kernel_1D(k_nr1sun)[1], c='dimgrey', alpha=0.8, linewidth=2)
+
 
     k_combined = np.stack([kc_p_model_values, k_nr1sun, kc_n_model_values]).ravel()
     
@@ -416,28 +388,23 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     ax_tau.set_yticks([])
 
 
-    
-    #plot_loghist(kc_p_model_values, ax_tau, 'log', color_prism[2])
-    #plot_loghist(k_nr1sun, ax_tau, 'log', 'dimgrey')
-    #plot_loghist(kc_n_model_values, ax_tau, 'log', color_prism[0])
-
     ax_tau.annotate(str('$k_{\mathrm{tr,n}}$: ' + print_function(kc_n_model_values, 'log')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
     ax_tau.annotate(str('$k_{\mathrm{tr,p}}$: ' + print_function(kc_p_model_values, 'log')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[2])
     ax_tau.annotate(str('$k_{\mathrm{nr1s}}$: ' + print_function(k_nr1sun, 'log')),[0.1, 0.62] , xycoords='axes fraction', fontsize=fontsize_base-2, c='dimgrey')
 
-    #ax_diffl.plot(plot_kernel_1D(Diffusion_length)[0], plot_kernel_1D(Diffusion_length)[1], c=color_prism[0], linewidth=2, alpha=0.8)
     plot_loghist(Diffusion_length, ax_diffl, 'lin', color_prism[0])
     ax_diffl.annotate(print_function(Diffusion_length, 'lin'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
 
-    #ax_LL.plot(plot_kernel_1D(LL_norm.ravel())[0], plot_kernel_1D(LL_norm.ravel())[1], c=color_prism[0], linewidth=2, alpha=0.8)
     plot_loghist(LL_norm, ax_LL, 'lin', color_prism[0])
     ax_LL.annotate(print_function(LL_norm.ravel(), 'lin'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
 
-    #ax_fluerr.plot(plot_kernel_1D(k_aug_model_values)[0], plot_kernel_1D(k_aug_model_values)[1], c=color_prism[0], linewidth=2, alpha=0.8)
     plot_loghist(k_aug_model_values, ax_fluerr, 'log', color_prism[0])
     ax_fluerr.annotate(print_function(k_aug_model_values, 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
 
-    
+    plot_loghist(df_save[f'sigma_LL'], ax_sigmaLL, 'log', color_prism[0])
+    ax_sigmaLL.annotate(print_function(df_save[f'sigma_LL'], 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
+
+
     S_report_1_kernel = S_report_1[S_report_1 != 0]
     S_report_2_kernel = S_report_2[S_report_2 != 0]
     
@@ -453,12 +420,8 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     ax_Ssub.set_ylim(bottom=0, top=2*x_array.max())
     ax_Ssub.set_yticks([])
 
-    #ax_Ssub.plot(plot_kernel_1D(S_report_1_kernel)[0], plot_kernel_1D(S_report_1_kernel)[1], c=color_prism[0], linewidth=2, alpha=0.8, label=S_plot_1_label)
-    #plot_loghist(S_report_1_kernel, ax_Ssub, 'log', color_prism[0])
     ax_Ssub.annotate(str(S_plot_1_label + ': ' + print_function(S_report_1_kernel, 'log')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
     
-    #ax_Ssub.plot(plot_kernel_1D(S_report_2_kernel)[0], plot_kernel_1D(S_report_2_kernel)[1], c=color_prism[1], linewidth=2, alpha=0.8,label=S_plot_2_label)
-    #plot_loghist(S_report_2_kernel, ax_Ssub, 'log', color_prism[1])
     ax_Ssub.annotate(str(S_plot_2_label + ': ' + print_function(S_report_2_kernel, 'log')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[1])
     ax_Ssub.annotate(str('$S_{\mathrm{mix,av}}$: ' + '{:.2f}'.format(np.mean(S_mix_model_values))),[0.1, 0.62] , xycoords='axes fraction', fontsize=fontsize_base-2, c='dimgrey')
     
@@ -472,20 +435,12 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     median_of_simulations = pd.DataFrame()
     median_of_simulations['Time (ns)'] = time_plot
 
-    #for j in range(500):
-    #    test_chain = random.randint(0,no_of_chains-1)
-    #    test_sample = random.randint(0,len(k_rad_model_values)/(no_of_chains)-1)
-    #
-    #    ax_main.semilogy(time_plot, N_calc_vals[test_chain,test_sample,:,:], c='pink', linewidth=1, alpha=0.5, zorder=0)
-
     N_calc_median = np.nanmedian(N_calc_vals,axis=[0, 1])
 
-    sigma_LL_all = trace.posterior.sigma_width.values[:,-final_sample_no:].ravel()
-    sigma_LL_logbins = np.logspace(np.log10(sigma_LL_all.min()/5), np.log10(sigma_LL_all.max()*5),50)
-    sigma_LL_max = ()
     
+
     PL_err_all =  trace.posterior.PL_err.values[:,-final_sample_no:].ravel()
-    PL_err_logbins = np.logspace(np.log10(PL_err_all.min()/5), np.log10(PL_err_all.max()*5),50)
+    PL_err_linbins = np.linspace(PL_err_all.min()/1.5, PL_err_all.max()*1.5,50)
     PL_err_max = ()
 
     for n in range(len(Surface)):
@@ -502,23 +457,23 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
         data_no_bckg[str("{:.1e}".format(Fluence[n]) + "[cm-2] S" + str(Surface[n]))] = df[str(n)]
         median_of_simulations[str("{:.1e}".format(Fluence[n]) + "[cm-2] S" + str(Surface[n]))] = N_calc_median[:,n]
 
-        #ax_sigmaLL.plot(plot_kernel_1D(df_save[f'sigma_LL_{n}'])[0], plot_kernel_1D(df_save[f'sigma_LL_{n}'])[1], c=line_color, linewidth=2, alpha=0.8)
-        plot_loghist(df_save[f'sigma_LL_{n}'], ax_sigmaLL, 'lin', line_color)
-        x,_,_ = ax_sigmaLL.hist(df_save[f'sigma_LL_{n}'], bins=sigma_LL_logbins, color=line_color, alpha=0.6)
-        sigma_LL_max = np.append(sigma_LL_max, x.max())
-        ax_sigmaLL.annotate('{:.3f}'.format(np.median(df_save[f'sigma_LL_{n}'])),[0.1, 0.76-0.07*n] , xycoords='axes fraction', fontsize=fontsize_base-2, c=line_color)
-        
-        #ax_PL_err.plot(plot_kernel_1D(df_save[f'PL_err_{n}'])[0], plot_kernel_1D(df_save[f'PL_err_{n}'])[1], c=line_color, linewidth=2, alpha=0.8)
-        #plot_loghist(df_save[f'PL_err_{n}'], ax_PL_err, 'lin', line_color)
-        x,_,_ = ax_PL_err.hist(df_save[f'PL_err_{n}'], bins=PL_err_logbins, color=line_color, alpha=0.6)
-        PL_err_max = np.append(PL_err_max, x.max())
-        ax_PL_err.annotate('{:.1e}'.format(np.median(df_save[f'PL_err_{n}'])),[0.1, 0.76-0.07*n] , xycoords='axes fraction', fontsize=fontsize_base-2, c=line_color)
+        if np.max(df_save[f'PL_err_{n}']) == 0:
+            ax_PL_err.annotate('0.0'.format(np.median(df_save[f'PL_err_{n}'])),[0.1, 0.76-0.07*n] , xycoords='axes fraction', fontsize=fontsize_base-2, c=line_color)
+
+        else:
+            ax_PL_err.plot(plot_kernel_1D(df_save[f'PL_err_{n}'])[0], plot_kernel_1D(df_save[f'PL_err_{n}'])[1], c=line_color, linewidth=2, alpha=0.8)
+            plot_loghist(df_save[f'PL_err_{n}'], ax_PL_err, 'lin', line_color)
+            x,_,_ = ax_PL_err.hist(df_save[f'PL_err_{n}'], bins=PL_err_linbins, color=line_color, alpha=0.6)
+            PL_err_max = np.append(PL_err_max, x.max())
+            ax_PL_err.annotate('{:.1e}'.format(np.median(df_save[f'PL_err_{n}'])),[0.1, 0.76-0.07*n] , xycoords='axes fraction', fontsize=fontsize_base-2, c=line_color)
 
 
-        #print(np.sum(np.abs(np.log10(N_calc_median[:,n]) - np.log10(df[str(n)][a]))))
-    ax_sigmaLL.set_ylim(bottom=0, top=2*sigma_LL_max.max())
-    ax_sigmaLL.set_yticks([])
-    ax_PL_err.set_ylim(bottom=0, top=2*PL_err_max.max())
+    
+    try:
+        ax_PL_err.set_ylim(bottom=0, top=2*PL_err_max.max())
+    except:
+        ax_PL_err.set_ylim(bottom=0)
+    
     ax_PL_err.set_yticks([])
 
 
@@ -534,16 +489,15 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
         
 
 
-    #ax_Ssub.set_xlim(1e-1,None)
     ax_main.set_ylim(bottom=np.min(N_calc_median)/2, top=3.5)
     ax_main.set_xlim(np.array(df['Time'])[0], np.array(df['Time'])[-1])
     ax_main.set_yscale('log')
     ax_main.set_xscale(scaling)
 
     ax_td.set_xscale('linear')
-    #ax_mob.set_xscale('linear')
-    #ax_pesc.set_xscale('linear')
-    #ax_fluerr.set_xscale('linear')
+    ax_mob.set_xscale('linear')
+    ax_sigmaLL.set_xscale('linear')
+    ax_PL_err.set_xscale('linear')
     ax_diffl.set_xscale('linear')
     ax_LL.set_xscale('linear')
     ax_pesc.set_xlim(0,1)
@@ -553,7 +507,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     else:
         legend_loc = 'center right'
     ax_main.legend(title='Fluences [cm$^{-2}$]', loc=legend_loc, frameon=False)
-    #ax_Ssub.legend()
     plt.tight_layout(w_pad=1)
 
 
@@ -563,7 +516,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     median_of_simulations.to_csv(f'{data_folder_trpl}/{sample_name}_median_of_simulations.dat', sep='\t', index= True, mode='w')
     df_save.to_csv(f'{data_folder_trpl}/{sample_name}_drawn_samples.dat', sep='\t', index= True, mode='w')
 
-    #plt.savefig(f'{data_folder_trpl}/{sample_name}_plot.pdf', format='pdf', dpi=300)
     plt.savefig(f'{data_folder_trpl}/{sample_name}_plot.png', format='png', dpi=300, transparent=False)
 
     
@@ -595,17 +547,12 @@ def make_BayesFigure(trace_name, data_folder_trpl, df,  Fluence, Surface, spacin
 
 
 
-
-
-
-
-
 def corner_plot_single(a, b, a_label, b_label, cornerlabel):
     centimeters = 1/2.54
     fontsize_base = 11
 
     fig_corner_1 = plt.figure(figsize=(10.5*centimeters, 10.5*centimeters))
-    #plt.subplots_adjust(wspace=0.2, hspace=0.35)
+
     gs_corner_1 = gridspec.GridSpec(1, 1)
     ax_plot = fig_corner_1.add_subplot(gs_corner_1[0,0])
 
@@ -645,18 +592,3 @@ def corner_plot_single(a, b, a_label, b_label, cornerlabel):
         ax_plot.spines[axis].set_linewidth(2)
     ax_plot.tick_params(bottom=True,top=True,left=True,right=True,
                    direction='in',width=2, length=3.5, which='both', labelsize=fontsize_base, zorder=2000)
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-

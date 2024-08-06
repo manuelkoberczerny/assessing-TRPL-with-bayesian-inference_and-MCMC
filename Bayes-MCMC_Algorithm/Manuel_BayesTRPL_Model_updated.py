@@ -9,6 +9,9 @@ import pytensor.tensor as at
 from pytensor import *
 from pytensor.graph.op import Op
 from pytensor.graph.basic import Apply
+from scipy.interpolate import UnivariateSpline
+from scipy.optimize import curve_fit
+from scipy.signal import medfilt
 
 import logging
 logger = logging.getLogger("pymc")
@@ -21,6 +24,7 @@ warnings.filterwarnings('ignore')
 def root_finder_loop_perform(D, a, b, thickness, noroots):
     # Define an Aesara expression for the function to be rooted
     def f(x, D, a, b, thickness):
+        #return (np.tan(x*thickness)+(D*(a)*x)/(b-D**2*x**2))**2
         return (np.tan(x*thickness)+(D*(a)*x)/((a/2)**2*b-D**2*x**2))**2
 
     x_sol1 = np.sort(shgo(f,bounds=[(0,0.8*np.pi/(thickness))], args = (D, a, b, thickness), sampling_method='sobol', n=1000).xl.flatten())
@@ -211,8 +215,7 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     
     ## Define Parameters
     # Surface recombination velocities are defined as the sum (S_sum), the ratio of sum and product (S_sumprod_ratio) and
-    S_sum_model = pm.Deterministic('S_sum_model', 1*(1+pm.LogNormal('S_sum_factor', 3, 3)))
-   
+    S_sum_model = pm.Deterministic('S_sum_model', 1*(1+pm.LogNormal('S_sum_factor', 0, 3)))
     S_sumprod_ratio_model = pm.Deterministic('S_sumprod_ratio_model', 1e-5+(1-1e-5)*pm.Beta('S_sumprod_ratio_factor', 2, 2))
     
     S_mix = pm.Bernoulli('S_mix',0.5)
@@ -220,11 +223,11 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     ## Calculate both surface recombination velocities from S_sum and S_b
     S_a = pm.Deterministic('S_low', (S_sum_model - at.sqrt(S_sum_model**2 *(1 - S_sumprod_ratio_model)))/2)
     S_b = pm.Deterministic('S_high', (S_sum_model + at.sqrt(S_sum_model**2 *(1 - S_sumprod_ratio_model)))/2)
-    
+
     # Effective S_front
     S_1 = pm.Deterministic('S_1', S_a*(1-S_mix) + S_b*S_mix)
     S_2 = pm.Deterministic('S_2', S_a*S_mix + S_b*(1-S_mix))
-   
+
     S_front_value = at.switch(at.eq(Surface, 1),  S_1,  S_2)
 
     S_front = S_front_value.dimshuffle(0,'x','x','x')
@@ -233,7 +236,7 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
 
     # Reabsorption
 
-    escape_prob_fact = pm.Beta('escape_prob_fact', 2, 2, shape=2)   
+    escape_prob_fact = pm.Beta('escape_prob_fact', 2, 2, shape=2)
     escape_prob = pm.Deterministic('escape_prob', escape_prob_fact)
     
     escape_prob_front = at.switch(at.eq(Surface,1), escape_prob[0], escape_prob[1])
@@ -244,7 +247,7 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     (True, False, False)
     
     # Diffusion Coeffient in cm2 s-1
-    mu_vert = pm.Deterministic('mu_vert', 0.01*(1+pm.LogNormal('mu_fact', 3, 3)))
+    mu_vert = pm.Deterministic('mu_vert', 0.01*(1+pm.LogNormal('mu_fact', 3, 2)))
     
     Diffusion_coefficient = pm.Deterministic('Diffusion_coefficient', mu_vert*(1.380649e-23*292/1.6021766e-19))
     
@@ -294,20 +297,22 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     ### II - Recombination Part
     ## Define Parameters
     # Radiative Recombination Rate
-    k_rad_model = pm.Deterministic('k_rad_model', 1e-9*pm.Beta('k_rad_model_fact',2, 2))
+    k_rad_model = pm.Deterministic('k_rad_model', 1e-9/(1+pm.LogNormal('k_rad_model_fact',2, 2)))
 
     N_t_model = pm.LogNormal('N_t_model', 35, 3) 
     
     kc_n = pm.LogNormal("kc_n_rate", 10, 3)
     kc_p = pm.Deterministic("kc_p_rate", kc_n*pm.LogNormal('kc_p_fact', -3, 3))
     
-    k_aug = pm.Deterministic('k_aug', 5e-27*pm.Beta('k_aug_fact', 2, 2))
+    k_aug = pm.Deterministic('k_aug', 5e-27/(1+pm.LogNormal('k_aug_fact', 5, 2)))
     
-    trap_depth = pm.Deterministic('trap_depth', pm.Beta('trap_depth_fact', 1, 1)*0.5)  # in eV
+    trap_depth = pm.Deterministic('trap_depth', pm.Beta('trap_depth_fact', 2, 2)*0.5)  # in eV
     n_em_1 = 1e18 * at.exp(-trap_depth/(8.62e-5 * 292))
     
-    dt = at.extra_ops.diff(time).T
-
+    
+    ## turn diffusion/surface recombination into a correctoin factor
+    dt = at.extra_ops.diff(time).T         
+    
     ### Looping over time-domain
     def total_recombination_rate(n_tz0_1, n_tz0_2, dt_current, n_dens, p_dens, kc_n, kc_p, ne_1, krad, N_t, p_esc, k_aug, n_eq):
       
@@ -356,10 +361,10 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     
     PL_err = pm.Deterministic('PL_err', bckg_list/ (1 + pm.LogNormal('PL_err_fact', 0, 2, shape=at.shape(bckg_list))))
     PL_err_2d = at.outer(at.ones(shape=at.shape(time)), PL_err)
-       
+
     
     def multiple_pulses(n_tz0, p_tz0, n_tz0_1, n_tz0_2, dt, n_0z, kc_n, kc_p, n_em_1, k_rad_model, k_aug, N_t, p_esc):
-           
+            
         result_inner, _ = pytensor.scan(fn=total_recombination_rate,
                                             sequences=[n_tz0_1, n_tz0_2, dt],
                                             outputs_info=[n_0z + n_tz0[-1,:], n_0z + p_tz0[-1,:]],
@@ -380,11 +385,17 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     N_bckg = result_outer[0][-1,-1,:]
     N_bckg = at.switch(at.le(N_bckg, 0), 0, N_bckg)
     
-    P_bckg = result_outer[1][-1,-1,:]
+    P_bckg = result_outer[1][-1,-1,:] #- result_outer[0][-1,-1, 0,:]
     P_bckg = at.switch(at.le(P_bckg, 0), 0, P_bckg)
 
     N_eq = [N_bckg, P_bckg]
+
+    print(N_eq[0].eval())
+    print(N_eq[1].eval())
         
+    n_eq_models = pm.Deterministic('n_eq_models', N_bckg)
+    n_eq_models = pm.Deterministic('p_eq_models', P_bckg)
+
     result_PL, _ = pytensor.scan(fn=total_recombination_rate,
                                             sequences=[n_tz0[:,:,:-1].T, n_tz0[:,:,1:].T, dt],
                                             outputs_info=[n_0z.T, n_0z.T],
@@ -406,7 +417,7 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     (True, True, False)
         
     
-    Rrad_calc = (N_calc+N_bckg)*(P_calc+P_bckg)-N_bckg*P_bckg
+    Rrad_calc = (N_calc+N_bckg)*(P_calc+P_bckg)-N_bckg*P_bckg#-(N_bckg*(N_bckg+N_trapped))
 
     
     PL_calc = at.sum(((Rrad_calc[:,1:,:] + Rrad_calc[:,:-1,:])/2*z_array_diff_3d), axis=1)
@@ -414,45 +425,95 @@ def diffusion_carrier_density_all(time, Fluence, Surface, thickness, Absorption_
     PL_0 = PL_calc[0,:]*(1-PL_err)
 
     PL_obs = PL_calc/PL_0 + PL_err_2d
+
+    #PL_obs = at.switch(at.le(PL_calc_norm, PL_err_2d), PL_err_2d, PL_calc_norm)
     
     return PL_obs
 
 
-
+def multi_exp_approximation(x,y, A1, A2, A3, tau1, tau2, tau3, beta2, beta3, y0):
+    
+    return A1*np.exp(-x/tau1) + A2*np.exp(-(x/tau2)**beta2) + A3*np.exp(-(x/tau3)**beta3) + 10**(-y0)
+    
 
 def glm_mcmc_inference_diffusion_full(Data_fit, a, Fluence, Surface, Thickness, Absorption_coeff, tune_no, draws_no, cores_no, max_arg, bckg_list, reabsorption_option):
 
-   
+    
     
     #### Setting up the Data and Timeframe
     time = np.array(Data_fit['Time'])[a]*1e-9    #s
         
     y_combined = np.zeros((len(time),len(Surface)))
-    
+    sigmas = np.zeros((len(time),len(Surface)))
+
+    #BSpline to determine sigma and smooth data
     for s in range(len(Surface)):
-        y_combined[:,s] = np.array(Data_fit[str(s)])[a]
+        data = np.array(Data_fit[str(s)])
+        #spline = splrep(Data_fit['Time'],data, s=int(len(data)/20))
+        #spline_fit = np.exp(BSpline(*spline)(Data_fit['Time']))
+
+        #window_size1 = 20      
+        #moving_avg = pd.Series(data).rolling(window_size).median().to_list()
+
+        #spline_fit = np.append(data[:window_size-1],moving_avg[window_size-1:])
+        
+        #spline1 = UnivariateSpline(Data_fit['Time'], np.log(data))
+        #spline1.set_smoothing_factor(1)
+        #spline_fit = np.exp(spline1(Data_fit['Time']))
+        popt, _ = curve_fit(multi_exp_approximation, Data_fit['Time'], data, maxfev=100000)
+
+        spline_fit = multi_exp_approximation(Data_fit['Time'], *popt)
+        
+        y_combined[:,s] = spline_fit[a]#np.array(Data_fit[str(s)])[a]
+        sigma_calcs = medfilt(np.sqrt((np.sqrt(spline_fit)-np.sqrt(data))**2),51)
+
+        #sigma_calcs[:window_size-1] = sigma_calcs[window_size]
+        
+        #spline = splrep(Data_fit['Time'],sigma_calcs, s=int(len(sigma_calcs)))
+        spline = UnivariateSpline(Data_fit['Time'], np.log(sigma_calcs))
+        spline_fit_sigma = np.exp(spline(Data_fit['Time']))
+        
+        sigmas[:,s] = spline_fit_sigma[a]
+
+        import matplotlib.pyplot as plt
+
+        plt.semilogy(time, data[a])
+        plt.semilogy(time, y_combined[:,s])
+        plt.show()
+
+        plt.semilogy(time, sigma_calcs[a])
+        plt.semilogy(time, sigmas[:,s])
+        plt.show()
+    
+    #print(sigmas[0,:])
+    #print(sigmas[-1,:])
+    #print(y_combined[0,:])
     
     with pm.Model() as model:
-        
-        
-                        
+
+        y_combined = at.as_tensor_variable(y_combined)
+                       
         #### Simulation of Time-Resolved PL
         N_calc = diffusion_carrier_density_all(shared(time), Fluence, Surface, Thickness, shared(Absorption_coeff[0]), at.as_tensor_variable(bckg_list), shared(reabsorption_option))
         
         ## Likelihood Function Student-T Distribution)
        
-        sigma_width = pm.Deterministic('sigma_width', 0.05/(1+pm.LogNormal('sigma_width_fact', 1, 2, shape=len(Surface))))            
+        #sigma_width = pm.Deterministic('sigma_width', 0.05/(1+pm.LogNormal('sigma_width_fact', 1, 2, shape=len(Surface))))            
+        sigma_width = pm.Deterministic('sigma_width', 0.1/(1+pm.LogNormal('sigma_width_fact', 2, 2))) 
+        #potential = pm.Potential('sigma_potential', sigma_width)
         
-        sigma_width = at.outer(at.ones(shape=len(time)), sigma_width)
-        
-        y_combined = at.as_tensor_variable(y_combined)        
-
-        
+        #sigma_width = at.outer(at.ones(shape=len(time)), sigma_width)
+        #log_lik_scaling = 0.5 + 0.5*pm.Beta('log_lik_scaling', 2,2)
+                
 
         N_calc_collect = pm.Deterministic('N_calc_collect', N_calc)
                                           
-        Logp = pm.Deterministic('Logp', pm.logp(rv=pm.Normal.dist(mu=at.sqrt(N_calc), sigma=sigma_width), value=at.sqrt(y_combined)))        
-        Y_obs = pm.Potential('Y_obs', (at.sqrt(sigma_width)*Logp))
+        #Logp = pm.Deterministic('Logp', pm.logp(rv=pm.Normal.dist(mu=at.sqrt(N_calc), sigma=2*sigmas), value=at.sqrt(y_combined)))        
+
+        Logp = pm.Deterministic('Logp', pm.logp(rv=pm.Normal.dist(mu=at.sqrt(N_calc), sigma = sigmas+sigma_width), value=at.sqrt(y_combined)))
+
+        
+        Y_obs = pm.Potential('Y_obs', (1*Logp))
         
         
         #### Draw Samples from the Posterior Distribution
@@ -462,9 +523,6 @@ def glm_mcmc_inference_diffusion_full(Data_fit, a, Fluence, Surface, Thickness, 
         trace = pm.sample(step=pm.Metropolis(),  chains=cores_no, draws=draws_no, cores=cores_no, tune=tune_no)
 
     return trace
-
-
-
 
 
 def save_trace(trace, folder, config_name, spacing, reabsorption, laserpower_file):
@@ -487,12 +545,7 @@ def save_trace(trace, folder, config_name, spacing, reabsorption, laserpower_fil
     print("Logfile has been saved!")
 
 
-
-
-
-
 def run_bayesian_inference(df, max_arg, spacing, Fluence, Surface, Thickness, Absorption_coeff, tune_no, draws_no, cores_no, folder, config_name, bckg_list, reabsorption, laserpower_file):
-
 
     a = spacing_choose(spacing, max_arg)
     print(spacing, len(a))
@@ -507,9 +560,6 @@ def run_bayesian_inference(df, max_arg, spacing, Fluence, Surface, Thickness, Ab
     print(" ")
 
     save_trace(trace, folder, config_name, spacing, reabsorption, laserpower_file)
-    
-    
-    
     
     return trace
 

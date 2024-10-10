@@ -1,4 +1,5 @@
 import os
+#os.environ['OPENBLAS_NUM_THREADS'] = '2'
 folder = os.getcwd()
 
 import numpy as np
@@ -8,7 +9,7 @@ import pymc as pm
 
 
 def cut_data(Data, time):
-    max_locator = np.argmax(Data)+1
+    max_locator = np.argmax(Data)
     dtime = time[2] - time[1]
     pre_zero_time = np.linspace(max_locator, 1+dtime, max_locator)
     pre_zero_time = pre_zero_time * dtime * -1
@@ -27,8 +28,8 @@ def cut_data(Data, time):
 def find_bckg(max_locator, Data):
     # Find the highest value before the pulse as an upper limit for PL_err   
     
-    Data_mask = np.array(Data[1:max_locator - 4])
-    Bckg = np.max(Data_mask)
+    Data_mask = np.array(Data[:max_locator - 2])
+    Bckg = np.median(Data_mask)
     
     return Bckg
 
@@ -62,7 +63,7 @@ def unpack_Data(FileName):
    
     """ Normalize Data"""
     Data3 = Data2 / Data2[0]
-    Bckg2 = Bckg/Data2[0]
+    Bckg2 = Bckg/ Data2[0]
     
     Data3[Data3 <= 0] = np.min(Data3[Data3 > 0])
 
@@ -125,7 +126,7 @@ def unpack_Info(args):
 def Fluence_Calc(wavelength, intensity, laserpower_file):
     """ Unpack Ref Data File"""
     
-    wl400, wl505, wl630 = np.loadtxt(str(folder + '/TRPL_Files/' + laserpower_file), unpack=True, skiprows=1)
+    wl400, wl505, wl630 = np.loadtxt(f'{os.path.dirname(folder)}\TRPL_Files\{laserpower_file}', unpack=True, skiprows=1)
 
 
     if wavelength == 397.7:

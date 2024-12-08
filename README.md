@@ -1,6 +1,6 @@
 # Fitting Time-Resolved Photoluminescence Data with Bayesian Inference and a Markov-Chain Monte-Carlo Sampler
 
-This is the code that was used in M. Kober-Czerny, <i>et.al.</i>; <i>accepted</i> <b>XXXX</b>.
+This is the code that was used in: M. Kober-Czerny, A. Dasgupta, S. Seo, F.M. Rombach, D.P. McMeekin, H. Jin, H.J. Snaith, "Determining Material Parameters of Metal Halide Perovskites Using Time-resolved Photoluminescence". <br>
 The theory and physical model used is described in the publication in detail.
 This code is written for data obtained by a [picoquant](https://www.picoquant.com) setup. There are instructions below on how to adapt the code to your own data format.
 

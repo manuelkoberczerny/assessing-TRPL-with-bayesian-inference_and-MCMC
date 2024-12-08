@@ -224,7 +224,7 @@ def Bayes_TRPL_Utils(data_folder_trpl, config_file_name, laserpower_file):
     amax = np.where(np.array(df['Time']) <= max_time )[0][-1]
 
     print('Files ready...')
-    return df, pile_up, sample_name, Fluence, Thickness, Surface, Absorption_coeff, Reflectance, intensity, amax
+    return df, pile_up, sample_name, Fluence, Thickness, Surface, Absorption_coeff, amax
 
 
 

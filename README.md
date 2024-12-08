@@ -77,4 +77,5 @@ where df is the dataframe containing the columns 'Time'| 1 | 2 | 3 | ...<br>
 sample_name is the name of the sample, Fluence is in cm^2, Thickness is in nm, Surface is either 0 (for one surface) or 1 (for the other surface), Absorption_coeff is in cm^-1, amax is the last timepoint in ns.
 
 ### Changing the Model
-
+To change the model, open Manuel_BayesTRPL_model.py and navigate to ```model_in_pytensor()```. To understand, how to add or change parameters, refer to the [Pymc documentation](https://www.pymc.io/projects/docs/en/stable/learn/core_notebooks/pymc_overview.html). <br>
+All functions are written in either numpy or [PyTensor](https://pytensor.readthedocs.io/en/latest/library/tensor/basic.html). For functions, such as 'for'-loops, we use PyTensors ```scan``` function instead (see [documentation](https://pytensor.readthedocs.io/en/latest/library/scan.html)). The use of PyTensor throughout the model enables a more straightforward use of gradient-based MCMC samplers, such as NUTS.

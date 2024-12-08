@@ -47,13 +47,14 @@ A plot showing the raw data and median 'fit' curve, as well as histograms for al
   </tr>
   <tr>
     <td>Sampler crashes with message 'Bad initial energy...'</td>
-    <td>- open Manuel_BayesTRPL_model.py
-    - navigate to ```sigma = sigmas * (2+99*pm.Beta('sigma_fact', 3,3))``` and change '3,3' to larger nmbers (like '5,5') </td>
+    <td>1. open Manuel_BayesTRPL_model.py <br>
+    2. navigate to ```sigma = sigmas * (2+99*pm.Beta('sigma_fact', 3,3))``` and change '3,3' to larger nmbers (like '5,5') </td>
   </tr>
   <tr>
     <td>Sampler continues to crash with message 'Bad initial energy...'</td>
-    <td>- open Manuel_BayesTRPL_model.py
-    - uncomment ```#trace = pm.sample(step=pm.Metropolis()...)``` and comment ```trace = pm.sample(...)``` </td>
+    <td>1. open Manuel_BayesTRPL_model.py <br>
+    2. uncomment ```#trace = pm.sample(step=pm.Metropolis()...)``` <br> 
+    3. comment ```trace = pm.sample(...)``` </td>
   </tr>
   <tr>
     <td>...</td>

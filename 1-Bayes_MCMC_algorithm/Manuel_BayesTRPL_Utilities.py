@@ -134,9 +134,9 @@ def unpack_Info(args):
 
 def Fluence_Calc(wavelength, intensity, laserpower_file):
     """ Unpack Ref Data File"""
-    
-    wl400, wl505, wl630 = np.loadtxt(str(folder + '/TRPL_Files/' + laserpower_file), unpack=True, skiprows=1)
-
+    path = os.getcwd()
+    parent_directory = os.path.abspath(os.path.join(path, os.pardir))
+    wl400, wl505, wl630 = np.loadtxt(str(parent_directory + '\Ref_Files\\'+laserpower_file), unpack=True, skiprows=1)
 
     if wavelength == 397.7:
 

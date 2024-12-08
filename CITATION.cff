@@ -1,0 +1,9 @@
+cff-version: 1.1.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: Kober-Czerny
+  given-names: Manuel
+orcid: https://orcid.org/0000-0002-7807-3133
+title: Assessing TRPL with Bayesian Inference and MCMC
+version: initial_release
+date-released: 2024-12-08

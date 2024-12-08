@@ -169,7 +169,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     
     # Setup of Figure
     fig_final = plt.figure(figsize=(24*centimeters, 28*centimeters))
-    #plt.subplots_adjust(wspace=0.2, hspace=0.1)
     
     gs_final_combined = fig_final.add_gridspec(2,1, height_ratios=[1,3.3])
     gs_final_main = gs_final_combined[0].subgridspec(1,6)
@@ -181,7 +180,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     ax_main.set_xlabel('Time after Pulse [ns]')
     ax_main.set_ylabel('Normalized PL Intensity [a.u.]')
     ax_main.annotate(f'(a) {sample_name}' ,[0.05, 0.9] , xycoords='axes fraction', fontsize=fontsize_base+1)
-    #ax_main.annotate(str('pile-up $\leq$' + '{:.1f}'.format(np.max(pile_up)) + "%") ,[0.05, 0.1] , xycoords='axes fraction', fontsize=fontsize_base)
 
     ax_ylabel = fig_final.add_subplot(gs_final[0:4, 0:6])
     ax_ylabel.set_title('Parameter Histograms', fontsize=fontsize_base+2)
@@ -224,10 +222,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
   
     Fluence_min_marker = np.where(Fluence == np.min(Fluence))[0]
 
-    
-   
-
-
 
     # Bulk Recombination
     k_rad_model_values = df_save['k_rad(cm3s-1)'] = trace.posterior.k_rad.values.ravel()[filter]       
@@ -247,9 +241,7 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     k_emission = df_save['k_emission(s-1)'] = trace.posterior.k_emission.values.ravel()[filter]
     k_deep = df_save['k_deep(s-1)'] = trace.posterior.k_deep.values.ravel()[filter]
     
-    df_save['k_nr_eff(s-1)'] = k_eff = k_deep*k_deep/(k_deep+k_capture) + k_capture*k_deep/(k_capture+k_deep)*k_emission/(k_emission+k_deep)
-    #df_save['k_nr_eff(s-1)'] = k_eff = k_capture*k_deep/(k_emission + k_deep)
-  
+    df_save['k_nr_eff(s-1)'] = k_eff = k_deep*k_deep/(k_deep+k_capture) + k_capture*k_deep/(k_capture+k_deep)*k_emission/(k_emission+k_deep)  
     df_save['k_bulk_eff(s-1)'] = k_bulk = k_eff+ k_rad_model_values*(one_sun_carrier_density+p0_model_value)
  
 
@@ -274,7 +266,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
 
     k_bulk_plus_surf = k_bulk + (S_report_1 + S_report_2)/(Thickness*1e-7)    
     
-
 
     ## Diffusion
     Mobility_values = df_save['Mobility_values(cm2V-1s-1)'] = trace.posterior.mu_vert.values.ravel()[filter]
@@ -339,9 +330,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     plot_loghist(df_save['sigma_LL_factor'], ax_LLerr, 'log', color_prism[0])
     ax_LLerr.annotate(print_function(df_save['sigma_LL_factor'], 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
 
-    #plot_loghist(k_deep, ax_bulk, 'log', color_prism[0])
-    #ax_bulk.annotate(print_function(k_deep, 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
-
 
     S_report_1_kernel = S_report_1[S_report_1 != 0]
     S_report_2_kernel = S_report_2[S_report_2 != 0]
@@ -362,7 +350,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     ax_Ssub.annotate(str(S_plot_2_label + ': ' + print_function(S_report_2_kernel, 'log')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[1])
     
 
-
     ### Plotting Simulated Curves alongside Data
     N_calc_vals = trace.posterior.N_calc_collect.values
 
@@ -373,8 +360,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
 
 
     N_calc_median = np.nanmedian(N_calc_vals,axis=[0, 1])
-
-    
 
 
     for n in range(len(Surface)):
@@ -392,7 +377,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
         median_of_simulations[str("{:.1e}".format(Fluence[n]) + "[cm-2] S" + str(Surface[n]))] = N_calc_median[:,n]
 
 
-
     for plot_name in [ax_main, ax_mob, ax_Ssub, ax_tau, ax_krad, ax_td, ax_PL_err_neq, ax_LL, ax_diffl, ax_LLerr]:
         for axis in ['top', 'bottom', 'left', 'right']:
             plot_name.spines[axis].set_linewidth(2)
@@ -404,18 +388,15 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
         plot_name.set_xscale('log')
         
 
-
     Data_array = np.array(df.loc[:,df.columns != 'Time']).flatten()
     zero_marker = np.where(Data_array <= 0)
     Data_array[zero_marker] = np.nan
 
     ax_main.set_ylim(bottom=np.nanmin(Data_array), top=3.5)
     ax_main.set_xlim(np.array(df['Time'])[0], np.array(df['Time'])[-1])
-    #ax_main.set_xlim(0, 2000)
     ax_main.set_yscale('log')
     ax_main.set_xscale(scaling)
 
-    #ax_td.set_xscale('linear')
     ax_PL_err_neq.set_yticks([])
     ax_diffl.set_xscale('linear')
 
@@ -427,21 +408,16 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     plt.tight_layout(w_pad=1)
 
 
-
     # Saving stuff
     data_no_bckg.to_csv(f'{data_folder_trpl}/{sample_name}_data_norm.dat', sep='\t', index= True, mode='w')
     median_of_simulations.to_csv(f'{data_folder_trpl}/{sample_name}_median_of_simulations.dat', sep='\t', index= True, mode='w')
     df_save.to_csv(f'{data_folder_trpl}/{sample_name}_drawn_samples.dat', sep='\t', index= True, mode='w')
 
-    plt.savefig(f'{data_folder_trpl}/{sample_name}_plot.png', format='png', dpi=300, transparent=False)
-
-    
-    
+    plt.savefig(f'{data_folder_trpl}/{sample_name}_plot.png', format='png', dpi=300, transparent=False)  
     plt.show()
 
     
     return df_save, trace   
-
 
 
 def make_BayesFigure(trace_name, data_folder_trpl, df,  Fluence, Surface, spacing, max_arg, Thickness, scaling, one_sun_carrier_density, pile_up, side_1, side_2, SRV_display, bckg_list, PN_on_off, diffusion_on_off, filter):
@@ -460,22 +436,16 @@ def make_BayesFigure(trace_name, data_folder_trpl, df,  Fluence, Surface, spacin
 
 
 
-
-
-
-
-
 def corner_plot_single(a, b, a_label, b_label, cornerlabel):
     centimeters = 1/2.54
     fontsize_base = 11
 
     fig_corner_1 = plt.figure(figsize=(10.5*centimeters, 10.5*centimeters))
-    #plt.subplots_adjust(wspace=0.2, hspace=0.35)
     gs_corner_1 = gridspec.GridSpec(1, 1)
     ax_plot = fig_corner_1.add_subplot(gs_corner_1[0,0])
 
     
-    ## Method 3: Kernel Density Estimation
+    ## Kernel Density Estimation
     def kernel_2D(a, b):
         
         a = np.log10(a)
@@ -492,9 +462,7 @@ def corner_plot_single(a, b, a_label, b_label, cornerlabel):
         return 10**x_a, 10**x_b, kernel_2d
     
     x_a, x_b, test_kernel = kernel_2D(a, b)
-    
-    
-    
+ 
     ax_plot.scatter(a,b,s=1,color='black',alpha=0.5)
     ax_plot.contourf(x_a, x_b, test_kernel, levels=10, cmap='bone_r',alpha=0.9)
     ax_plot.contour(x_a, x_b, test_kernel, levels=10, colors='black',alpha=0.25)

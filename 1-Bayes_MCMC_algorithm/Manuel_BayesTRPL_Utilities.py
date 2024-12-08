@@ -62,9 +62,7 @@ def unpack_Data(FileName):
        
    
     """ Normalize Data"""
-    Data3 = Data2 / Data2[0]
-    Bckg2 = Bckg/ Data2[0]
-    
+    Data3 = Data2 / Data2[0]    
     Data3[Data3 <= 0] = np.min(Data3[Data3 > 0])
 
 

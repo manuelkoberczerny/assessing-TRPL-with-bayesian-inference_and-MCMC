@@ -1,1 +1,2 @@
-# fitting-time-resolved-photoluminescence-with--bayesian-inference
+# Fitting Time-Resolved Photoluminescence Data with\n Bayesian Inference and a Markov-Chain Monte-Carlo Sampler
+

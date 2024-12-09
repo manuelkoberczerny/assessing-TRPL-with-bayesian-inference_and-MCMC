@@ -136,7 +136,8 @@ def Fluence_Calc(wavelength, intensity, laserpower_file):
     """ Unpack Ref Data File"""
     path = os.getcwd()
     parent_directory = os.path.abspath(os.path.join(path, os.pardir))
-    wl400, wl505, wl630 = np.loadtxt(str(parent_directory + '\Ref_Files\\'+laserpower_file), unpack=True, skiprows=1)
+    file_path = f'{parent_directory}/Ref_Files/{laserpower_file}'
+    wl400, wl505, wl630 = np.loadtxt(file_path, unpack=True, skiprows=1)
 
 
 
@@ -196,8 +197,11 @@ def unpack_filenames(FileNames, intensity, Reflectance, laserpower_file):
 
 
 def one_sun_condition_estimate(BG, sync_frequency, thickness):
-    
-    wavelength, NREL_Sun, NREL_15AM = np.loadtxt(r'C:\Users\kober-czerny\Desktop\Python Scripts\TRPL_Fitting\TRPL_Bayes\TRPL_Files\Solar_Spectrum.txt', unpack=True)
+
+    path = os.getcwd()
+    parent_directory = os.path.abspath(os.path.join(path, os.pardir))
+    file_path = f'{parent_directory}/Ref_Files/Solar_Spectrum.txt'
+    wavelength, NREL_Sun, NREL_15AM = np.loadtxt(file_path, unpack=True)
     
     h_bar = 6.582119569e-16  # eV s
     h_norm = 4.135667696e-15  # eV s

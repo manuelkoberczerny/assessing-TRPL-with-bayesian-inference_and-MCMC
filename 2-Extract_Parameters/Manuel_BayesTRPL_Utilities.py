@@ -136,7 +136,7 @@ def Fluence_Calc(wavelength, intensity, laserpower_file):
     """ Unpack Ref Data File"""
     path = os.getcwd()
     parent_directory = os.path.abspath(os.path.join(path, os.pardir))
-    file_path = f'{parent_directory}/Ref_Files/{laserpower_file}'
+    file_path = f'{parent_directory}\Ref_Files\{laserpower_file}'
     wl400, wl505, wl630 = np.loadtxt(file_path, unpack=True, skiprows=1)
 
 

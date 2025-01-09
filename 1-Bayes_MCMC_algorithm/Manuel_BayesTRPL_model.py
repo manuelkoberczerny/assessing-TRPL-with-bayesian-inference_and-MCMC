@@ -4,8 +4,6 @@ import pymc as pm
 import datetime
 import pytensor.tensor as at
 from pytensor import *
-from pytensor.graph.op import Op
-from pytensor.graph.basic import Apply
 from pytensor import config
 config.allow_gc = False
 
@@ -91,7 +89,7 @@ def setup_data_for_inference(Data_fit, a, Surface):
             popt, _ = curve_fit(multi_exp_approximation, Data_fit['Time'], np.sqrt(data), maxfev=100000)
             spline_fit = multi_exp_approximation(Data_fit['Time'], *popt)**2
         except:
-            spline_fit = datan
+            spline_fit = data
         else:
             popt, _ = curve_fit(multi_exp_approximation, Data_fit['Time'], np.sqrt(data), maxfev=100000)
             spline_fit = multi_exp_approximation(Data_fit['Time'], *popt)**2

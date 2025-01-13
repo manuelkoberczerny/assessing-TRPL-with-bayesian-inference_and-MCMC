@@ -261,6 +261,7 @@ def open_log_file(data_folder_trpl, trace_file):
     
     spacing = log_info[0][0]
     laserpower_file = log_info[1][0]
+    sh_defect = log_info[2][0]
     PN_on_off = log_info[3][0]
     diffusion_on_off = log_info[4][0]
 
@@ -271,12 +272,12 @@ def open_log_file(data_folder_trpl, trace_file):
     else:
         bckg_list = np.array(log_info[5][0][1:-2].split(' '))
 
-    return spacing, laserpower_file, bckg_list, PN_on_off, diffusion_on_off
+    return spacing, laserpower_file, bckg_list, PN_on_off, diffusion_on_off, sh_defect
 
 
 def Bayes_TRPL_Utils(data_folder_trpl, trace_file):
 
-    spacing, laserpower_file, bckg_list, PN_on_off, diffusion_on_off = open_log_file(data_folder_trpl, trace_file)
+    spacing, laserpower_file, bckg_list, PN_on_off, diffusion_on_off, sh_defect = open_log_file(data_folder_trpl, trace_file)
     FileNames, Thickness, Surface, Absorption_coeff, Reflectance, intensity, max_time = open_config_file(data_folder_trpl, trace_file)    
     df, pile_up, sample_name, Fluence, wavelength, frequency = unpack_filenames(FileNames, intensity, Reflectance, laserpower_file)
 
@@ -285,7 +286,7 @@ def Bayes_TRPL_Utils(data_folder_trpl, trace_file):
     one_sun_carrier_density = one_sun_condition_estimate(1240/wavelength, frequency, Thickness*1e-7)
     
     print('Files ready...')
-    return df, pile_up, sample_name, Fluence, Thickness, Surface, Absorption_coeff, Reflectance, intensity, amax, one_sun_carrier_density, spacing, bckg_list, PN_on_off, diffusion_on_off
+    return df, pile_up, sample_name, Fluence, Thickness, Surface, Absorption_coeff, Reflectance, intensity, amax, one_sun_carrier_density, spacing, bckg_list, PN_on_off, diffusion_on_off, sh_defect
 
 
 

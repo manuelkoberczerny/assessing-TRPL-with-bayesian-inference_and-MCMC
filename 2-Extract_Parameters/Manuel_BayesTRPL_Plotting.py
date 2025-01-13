@@ -151,7 +151,7 @@ def spacing_choose(spacing, end_point):
 
 
 
-def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_name, data_folder_trpl, one_sun_carrier_density, max_arg, pile_up, side_1, side_2, SRV_display, bckg_list, PN_on_off, diffusion_on_off, filter):
+def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_name, data_folder_trpl, one_sun_carrier_density, max_arg, pile_up, side_1, side_2, SRV_display, bckg_list, PN_on_off, diffusion_on_off, sh_defect, filter):
     
     # Plotting Parameters
     centimeters = 1/2.54
@@ -236,10 +236,15 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
         plot_loghist(p0_model_value, ax_PL_err_neq, 'log', color_prism[0])
         ax_PL_err_neq.annotate(print_function(p0_model_value, 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
 
-
-    k_capture = df_save['k_capture(s-1)'] = trace.posterior.k_capture.values.ravel()[filter]
-    k_emission = df_save['k_emission(s-1)'] = trace.posterior.k_emission.values.ravel()[filter]
-    k_deep = df_save['k_deep(s-1)'] = trace.posterior.k_deep.values.ravel()[filter]
+    if sh_defect == 0:
+        k_capture = 0
+        k_emission = 0
+        k_deep = df_save['k_deep(s-1)'] = trace.posterior.k_deep.values.ravel()[filter]
+    else:
+    
+        k_capture = df_save['k_capture(s-1)'] = trace.posterior.k_capture.values.ravel()[filter]
+        k_emission = df_save['k_emission(s-1)'] = trace.posterior.k_emission.values.ravel()[filter]
+        k_deep = df_save['k_deep(s-1)'] = trace.posterior.k_deep.values.ravel()[filter]
     
     df_save['k_nr_eff(s-1)'] = k_eff = k_deep*k_deep/(k_deep+k_capture) + k_capture*k_deep/(k_capture+k_deep)*k_emission/(k_emission+k_deep)  
     df_save['k_bulk_eff(s-1)'] = k_bulk = k_eff+ k_rad_model_values*(one_sun_carrier_density+p0_model_value)
@@ -289,20 +294,25 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     ax_krad.annotate(print_function(k_rad_model_values, 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
     
 
-    k_nr_combined = np.stack([k_capture, k_emission, k_deep]).ravel()
-    bins = np.logspace(np.log10(k_nr_combined.min()/1.5), np.log10(k_nr_combined.max()*1.5),30)
     
-    x1,_,_ = ax_tau.hist(k_capture, bins=bins, color=color_prism[0], alpha=0.6)
-    x2,_,_ = ax_tau.hist(k_emission, bins=bins, color=color_prism[1], alpha=0.6)
-    x3,_,_ = ax_tau.hist(k_deep, bins=bins, color=color_prism[2], alpha=0.6)
+    if sh_defect == 0:
+        plot_loghist(k_deep, ax_tau, 'log', color_prism[0])
+        ax_tau.annotate(str('$k_{\mathrm{d}}$: ' + print_function(k_deep, 'log')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
+    else:
+        k_nr_combined = np.stack([k_capture, k_emission, k_deep]).ravel()
+        bins = np.logspace(np.log10(k_nr_combined.min()/1.5), np.log10(k_nr_combined.max()*1.5),30)
+    
+        x1,_,_ = ax_tau.hist(k_capture, bins=bins, color=color_prism[0], alpha=0.6)
+        x2,_,_ = ax_tau.hist(k_emission, bins=bins, color=color_prism[1], alpha=0.6)
+        x3,_,_ = ax_tau.hist(k_deep, bins=bins, color=color_prism[2], alpha=0.6)
 
-    x_array = np.array([x1.max(),x2.max(),x3.max()])
-    ax_tau.set_ylim(bottom=0, top=2*x_array.max())
-    ax_tau.set_yticks([])
+        x_array = np.array([x1.max(),x2.max(),x3.max()])
+        ax_tau.set_ylim(bottom=0, top=2*x_array.max())
+        ax_tau.set_yticks([])
 
-    ax_tau.annotate(str('$k_{\mathrm{c}}$: ' + print_function(k_capture, 'log')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
-    ax_tau.annotate(str('$k_{\mathrm{e}}$: ' + print_function(k_emission, 'log')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[1])
-    ax_tau.annotate(str('$k_{\mathrm{d}}$: ' + print_function(k_deep, 'log')),[0.1, 0.62] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[2])
+        ax_tau.annotate(str('$k_{\mathrm{c}}$: ' + print_function(k_capture, 'log')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
+        ax_tau.annotate(str('$k_{\mathrm{e}}$: ' + print_function(k_emission, 'log')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[1])
+        ax_tau.annotate(str('$k_{\mathrm{d}}$: ' + print_function(k_deep, 'log')),[0.1, 0.62] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[2])
 
 
 
@@ -420,7 +430,7 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     return df_save, trace   
 
 
-def make_BayesFigure(trace_name, data_folder_trpl, df,  Fluence, Surface, spacing, max_arg, Thickness, scaling, one_sun_carrier_density, pile_up, side_1, side_2, SRV_display, bckg_list, PN_on_off, diffusion_on_off, filter):
+def make_BayesFigure(trace_name, data_folder_trpl, df,  Fluence, Surface, spacing, max_arg, Thickness, scaling, one_sun_carrier_density, pile_up, side_1, side_2, SRV_display, bckg_list, PN_on_off, diffusion_on_off, sh_defect, filter):
 
     trace = az.from_netcdf(f'{data_folder_trpl}/{trace_name}')
     
@@ -429,7 +439,7 @@ def make_BayesFigure(trace_name, data_folder_trpl, df,  Fluence, Surface, spacin
 
     a = spacing_choose(spacing, max_arg)
 
-    df_save, trace = plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_name, data_folder_trpl, one_sun_carrier_density, max_arg, pile_up, side_1, side_2, SRV_display, bckg_list, PN_on_off, diffusion_on_off, filter)  
+    df_save, trace = plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_name, data_folder_trpl, one_sun_carrier_density, max_arg, pile_up, side_1, side_2, SRV_display, bckg_list, PN_on_off, diffusion_on_off, sh_defect, filter)  
     
 
     return df_save, trace

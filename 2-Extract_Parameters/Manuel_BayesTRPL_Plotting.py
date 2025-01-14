@@ -273,11 +273,18 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     
 
     ## Diffusion
-    Mobility_values = df_save['Mobility_values(cm2V-1s-1)'] = trace.posterior.mu_vert.values.ravel()[filter]
-    Diffusion_coeff_values = trace.posterior.Diffusion_coefficient.values.ravel()[filter]
-    Diffusion_length = df_save['Diffusion_length(um)'] = np.sqrt(Diffusion_coeff_values/k_eff)*1e4
-    Diffusion_length_bulk  = np.sqrt(Diffusion_coeff_values/k_bulk)*1e4
-    Diffusion_length_surface = np.sqrt(Diffusion_coeff_values/k_bulk_plus_surf)*1e4
+    Mob_vals = trace.posterior.mu_vert.values.ravel()[filter]
+    if np.mean(Mob_vals) == 0:
+        diff_infer = False
+    else:
+        diff_infer = True
+    
+    if diff_infer:
+        Mobility_values = df_save['Mobility_values(cm2V-1s-1)'] = Mob_vals
+        Diffusion_coeff_values = trace.posterior.Diffusion_coefficient.values.ravel()[filter]
+        Diffusion_length = df_save['Diffusion_length(um)'] = np.sqrt(Diffusion_coeff_values/k_eff)*1e4
+        Diffusion_length_bulk  = np.sqrt(Diffusion_coeff_values/k_bulk)*1e4
+        Diffusion_length_surface = np.sqrt(Diffusion_coeff_values/k_bulk_plus_surf)*1e4
 
     ## Logp vals
     print(np.shape(trace.posterior.Logp.values))
@@ -287,9 +294,6 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
 
 
     ### Plotting the Probability Densities
-    plot_loghist(Mobility_values, ax_mob, 'log', color_prism[0])
-    ax_mob.annotate(print_function(Mobility_values, 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
-
     plot_loghist(k_rad_model_values, ax_krad, 'log', color_prism[0])
     ax_krad.annotate(print_function(k_rad_model_values, 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
     
@@ -329,10 +333,18 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     ax_td.annotate(str('nr: ' +print_function(k_eff, 'log')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
     ax_td.annotate(str('nr+rad: ' +print_function(k_bulk, 'log')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c='dimgrey')
 
-    plot_loghist(Diffusion_length, ax_diffl, 'lin', color_prism[0])
-    ax_diffl.annotate(str('nr: ' +print_function(Diffusion_length, 'lin')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
-    ax_diffl.annotate(str('nr+r: ' + print_function(Diffusion_length_bulk, 'lin')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c='dimgrey')
-    ax_diffl.annotate(str('nr+r+S: ' + print_function(Diffusion_length_surface, 'lin')),[0.1, 0.62] , xycoords='axes fraction', fontsize=fontsize_base-2, c='dimgrey')
+    if diff_infer:
+        plot_loghist(Mobility_values, ax_mob, 'log', color_prism[0])
+        ax_mob.annotate(print_function(Mobility_values, 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
+
+        plot_loghist(Diffusion_length, ax_diffl, 'lin', color_prism[0])
+        ax_diffl.annotate(str('nr: ' +print_function(Diffusion_length, 'lin')),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
+        ax_diffl.annotate(str('nr+r: ' + print_function(Diffusion_length_bulk, 'lin')),[0.1, 0.69] , xycoords='axes fraction', fontsize=fontsize_base-2, c='dimgrey')
+        ax_diffl.annotate(str('nr+r+S: ' + print_function(Diffusion_length_surface, 'lin')),[0.1, 0.62] , xycoords='axes fraction', fontsize=fontsize_base-2, c='dimgrey')
+    else:
+        ax_diffl.annotate('cannot be inferred',[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
+        ax_mob.annotate('cannot be inferred',[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])
+
 
     plot_loghist(df_save['LL'], ax_LL, 'log', color_prism[0])
     ax_LL.annotate(print_function(df_save['LL'], 'log'),[0.1, 0.76] , xycoords='axes fraction', fontsize=fontsize_base-2, c=color_prism[0])

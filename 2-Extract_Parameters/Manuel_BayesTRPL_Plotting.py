@@ -273,8 +273,11 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     
 
     ## Diffusion
+    limit_mobility = (Thickness*1e-7)**2/(np.abs(np.array(df['Time'])[1]-np.array(df['Time'])[0]))/(1.380649e-23*292/1.6021766e-19)/4 #cm2 (Vs)-1
+    min_mobility = (Thickness*1e-7)**2/(np.abs(np.array(df['Time'])[-1]))/(1.380649e-23*292/1.6021766e-19) * 10 #cm2 (Vs)-1
+
     Mob_vals = trace.posterior.mu_vert.values.ravel()[filter]
-    if np.mean(Mob_vals) == 0:
+    if np.median(Mob_vals) <= min_mobility or np.median(Mob_vals) >= limit_mobility:
         diff_infer = False
     else:
         diff_infer = True

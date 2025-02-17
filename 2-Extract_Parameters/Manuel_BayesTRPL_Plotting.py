@@ -273,24 +273,29 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
     
 
     ## Diffusion
-    limit_mobility = (Thickness*1e-7)**2/(np.abs(np.array(df['Time'])[1]-np.array(df['Time'])[0]))/(1.380649e-23*292/1.6021766e-19)/4 #cm2 (Vs)-1
-    min_mobility = (Thickness*1e-7)**2/(np.abs(np.array(df['Time'])[-1]))/(1.380649e-23*292/1.6021766e-19) * 10 #cm2 (Vs)-1
+    limit_mobility = (Thickness*1e-7)**2/(1e-9 * np.abs(np.array(df['Time'])[1]-np.array(df['Time'])[0]))/(1.380649e-23*292/1.6021766e-19)/4 #cm2 (Vs)-1
+    min_mobility = (Thickness*1e-7)**2/(1e-9 * np.abs(np.array(df['Time'])[-1]))/(1.380649e-23*292/1.6021766e-19) * 5 #cm2 (Vs)-1
+
 
     Mob_vals = trace.posterior.mu_vert.values.ravel()[filter]
-    if np.median(Mob_vals) <= min_mobility or np.median(Mob_vals) >= limit_mobility:
-        diff_infer = False
-    else:
-        diff_infer = True
+    mob_filter = [(Mob_vals >= min_mobility) & (Mob_vals <= limit_mobility)][0]
     
-    if diff_infer:
+    if len(Mob_vals[mob_filter])/len(Mob_vals) >= 0.3:
+        
+        diff_infer = True
+        
         Mobility_values = df_save['Mobility_values(cm2V-1s-1)'] = Mob_vals
+        Mobility_values[~mob_filter] = np.nan
         Diffusion_coeff_values = trace.posterior.Diffusion_coefficient.values.ravel()[filter]
+        Diffusion_coeff_values[~mob_filter] = np.nan
+
         Diffusion_length = df_save['Diffusion_length(um)'] = np.sqrt(Diffusion_coeff_values/k_eff)*1e4
         Diffusion_length_bulk  = np.sqrt(Diffusion_coeff_values/k_bulk)*1e4
         Diffusion_length_surface = np.sqrt(Diffusion_coeff_values/k_bulk_plus_surf)*1e4
+    else:
+        diff_infer = False
 
     ## Logp vals
-    print(np.shape(trace.posterior.Logp.values))
     LL = np.abs(trace.posterior.Logp.values.ravel()[filter])
     df_save['LL'] = LL.ravel()/(len(time_plot)*len(Surface))
     df_save['sigma_LL_factor'] = 2+9*trace.posterior.sigma_fact.values.ravel()[filter]  

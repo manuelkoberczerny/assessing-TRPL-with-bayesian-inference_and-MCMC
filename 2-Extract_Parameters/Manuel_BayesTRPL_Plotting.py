@@ -284,8 +284,9 @@ def plot_and_save(trace, a, df, Fluence, Surface, Thickness, scaling, sample_nam
         
         diff_infer = True
         
+        Mob_vals[~mob_filter] = np.nan
         Mobility_values = df_save['Mobility_values(cm2V-1s-1)'] = Mob_vals
-        Mobility_values[~mob_filter] = np.nan
+        
         Diffusion_coeff_values = trace.posterior.Diffusion_coefficient.values.ravel()[filter]
         Diffusion_coeff_values[~mob_filter] = np.nan
 

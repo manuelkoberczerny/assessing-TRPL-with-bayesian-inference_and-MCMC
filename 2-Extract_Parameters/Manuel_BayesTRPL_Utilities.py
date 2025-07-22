@@ -50,7 +50,7 @@ def unpack_Data(FileName):
                 rows_to_skip = lines.index(line)+1
 
 
-    time1, Data1 = np.loadtxt(FileName, unpack=True, skiprows=rows_to_skip)
+    time1, Data1 = np.loadtxt(FileName, unpack=True, skiprows=rows_to_skip, encoding='latin1')
             
     Data1 = np.array(Data1)
     len_Data = len(Data1)

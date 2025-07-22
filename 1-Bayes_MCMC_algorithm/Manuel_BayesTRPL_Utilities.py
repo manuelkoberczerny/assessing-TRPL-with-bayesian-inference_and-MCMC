@@ -46,11 +46,11 @@ def unpack_Data(FileName):
         for line in lines:
             # check if string present on a current line
             word = b'Time [ns]'
-            if word in line:#line.find(word) != -1:
+            if word in line:
                 rows_to_skip = lines.index(line)+1
 
 
-    time1, Data1 = np.loadtxt(FileName, unpack=True, skiprows=rows_to_skip)
+    time1, Data1 = np.loadtxt(FileName, unpack=True, skiprows=rows_to_skip, encoding='latin1')
             
     Data1 = np.array(Data1)
     len_Data = len(Data1)

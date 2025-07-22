@@ -40,16 +40,17 @@ def unpack_Data(FileName):
 
     ## First the data is imported, the background removed, the maximum shifted to t=0 and everything is normalized to Exc_Density
 
-    rows_to_skip = 73
-    time1 = None
-    while time1 is None:
-        try:
-            time1, Data1 = np.loadtxt(FileName, unpack=True, skiprows= rows_to_skip, encoding='unicode_escape')
-        except:
-            rows_to_skip += 1
-            pass
-        else:
-            time1, Data1 = np.loadtxt(FileName, unpack=True, skiprows= rows_to_skip, encoding='unicode_escape')
+    with open(FileName, 'rb') as file:
+    # read all lines using readline()
+        lines = file.readlines()
+        for line in lines:
+            # check if string present on a current line
+            word = b'Time [ns]'
+            if word in line:#line.find(word) != -1:
+                rows_to_skip = lines.index(line)+1
+
+
+    time1, Data1 = np.loadtxt(FileName, unpack=True, skiprows=rows_to_skip)
             
     Data1 = np.array(Data1)
     len_Data = len(Data1)

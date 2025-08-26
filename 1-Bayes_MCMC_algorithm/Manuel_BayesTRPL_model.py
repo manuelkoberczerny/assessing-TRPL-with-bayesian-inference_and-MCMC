@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import pymc as pm
 import datetime
 import pytensor.tensor as at
@@ -98,7 +99,7 @@ def setup_data_for_inference(Data_fit, a, Surface):
         grad = -np.round(np.median(np.gradient(spline_fit[a], time)[-5:]),0)
         
         
-        sigma_calcs = medfilt(np.sqrt((np.sqrt(spline_fit)-np.sqrt(data))**2),51)
+        sigma_calcs = medfilt(np.sqrt((np.sqrt(spline_fit)-np.sqrt(data))**2)/np.sqrt(data),51)
         spline = UnivariateSpline(Data_fit['Time'], np.log(sigma_calcs))
         spline_fit_sigma = np.exp(spline(Data_fit['Time']))
         sigmas[:,s] = spline_fit_sigma[a]
@@ -109,8 +110,8 @@ def setup_data_for_inference(Data_fit, a, Surface):
     return time, y_combined, sigmas, bckg_list
 
 
-def X_n_maker(d_factor, size, dx, D, Sf, Sb):
-    x_size = at.zeros(shape=(at.shape(size),at.shape(size)))
+def X_n_maker(d_factor, x_size, dx, D, Sf, Sb):
+    
     Xn_1 = at.extra_ops.fill_diagonal_offset(x_size, d_factor, -1)
     
     Xn_2a = at.extra_ops.fill_diagonal_offset(x_size, 1-2.*d_factor, 0)
@@ -154,7 +155,7 @@ def Runge_Kutta_R4(n_dens, nt, dt, params):
 
 
 ### Looping over time-domain
-def total_recombination_rate(dt_current, n_dens, p_dens, ds, params):
+def total_recombination_rate(dt_current, n_dens, p_dens, ds, x_size, params):
 
     _, _, _, _, _, _, D, S_f, S_b = params
 
@@ -164,10 +165,10 @@ def total_recombination_rate(dt_current, n_dens, p_dens, ds, params):
     
     # b. Diffusion
     d_factor = D*dt_current/(2*ds*ds)
-    A_n = X_n_maker(-d_factor, n_dens, ds, D, S_f, S_b)
-    B_n = X_n_maker(d_factor, n_dens, ds, D, S_f, S_b)
+    A_n = X_n_maker(-d_factor, x_size, ds, D, S_f, S_b)
+    B_n = X_n_maker(d_factor, x_size, ds, D, S_f, S_b)
 
-    Bn_dot_n_dens = at.dot(B_n, n_dens) + Ruku_n*dt_current/2
+    Bn_dot_n_dens = at.dot(B_n, n_dens) + Ruku_n*dt_current
     n_dens_new = at.dot(at.linalg.inv(A_n), Bn_dot_n_dens)
 
     # c. Physical limits
@@ -178,7 +179,7 @@ def total_recombination_rate(dt_current, n_dens, p_dens, ds, params):
     return n_dens_new, p_dens_new
 
 
-def save_trace(trace, folder, config_name, spacing, laserpower_file, _, bckg_list, PN_on_off, diffusion_on_off):
+def save_trace(trace, folder, config_name, spacing, laserpower_file, _, bckg_list, PN_on_off, diffusion_on_off, sh_defect):
 
     tracename = config_name[:-4]
     date_time_code = str(datetime.datetime.now()).split('.')
@@ -190,7 +191,7 @@ def save_trace(trace, folder, config_name, spacing, laserpower_file, _, bckg_lis
     print("Trace has been saved!")
 
     text_file = open(f"{folder}/{sample_name}_logfile.txt", 'w')
-    my_string = str(spacing  + "\t" + laserpower_file + "\t" + "_"+ "\t" + str(PN_on_off) + "\t" + str(diffusion_on_off) + "\t" + str(bckg_list))
+    my_string = str(spacing  + "\t" + laserpower_file + "\t" + str(sh_defect)+ "\t" + str(PN_on_off) + "\t" + str(diffusion_on_off) + "\t" + str(bckg_list))
     text_file.write(my_string)
     text_file.close()
     print("Logfile has been saved!")
@@ -200,7 +201,7 @@ def save_trace(trace, folder, config_name, spacing, laserpower_file, _, bckg_lis
 #### Shallow-Defect Model ####
 ##############################
     
-def loop_over_samples(n_0z, S_f, S_b, pn_eq, Rrad, ds, dt, params):
+def loop_over_samples(n_0z, S_f, S_b, pn_eq, Rrad, ds, dt, x_size, params):
     # re-pack parameters
     k_c, k_p, n_em, p0, k_aug, k_rad, Diffusion_coefficient = params
     params = k_c, k_p, n_em, k_rad, k_aug, p0, Diffusion_coefficient, S_f, S_b
@@ -208,7 +209,7 @@ def loop_over_samples(n_0z, S_f, S_b, pn_eq, Rrad, ds, dt, params):
     result_one_sample, _ = pytensor.scan(fn=total_recombination_rate,
                                             sequences=[dt],
                                             outputs_info=[n_0z, n_0z+pn_eq],
-                                            non_sequences=[ds, params], strict=True)    
+                                            non_sequences=[ds, x_size, params], strict=True)    
 
     n_init = (n_0z).dimshuffle('x',0)
     N_calc = at.concatenate([n_init, result_one_sample[0]], axis=0)
@@ -218,7 +219,7 @@ def loop_over_samples(n_0z, S_f, S_b, pn_eq, Rrad, ds, dt, params):
     return (N_calc)*(P_calc)
 
 
-def model_in_pytensor(time, Fluence, Surface, thickness, Absorption_coeff, bckg_list, PN_on_off, diffusion_on_off):
+def model_in_pytensor(time, Fluence, Surface, thickness, Absorption_coeff, bckg_list, PN_on_off, diffusion_on_off, sh_defect):
     
     ### Define the spacial and temporal domains
     x = np.arange(0,thickness,30)
@@ -231,7 +232,7 @@ def model_in_pytensor(time, Fluence, Surface, thickness, Absorption_coeff, bckg_
     
     ### Define Parameters
     ## 1 - Surface recombination velocities
-    SRVs = pm.LogNormal('SRVs', 2, 2, shape=2)*1e4
+    SRVs = (1+pm.LogNormal('SRVs', 2, 2, shape=2))*1e4
 
     S_1_save = pm.Deterministic('S_1', SRVs[0] * 1e-4)
     S_2_save = pm.Deterministic('S_2', SRVs[1] * 1e-4)
@@ -243,12 +244,9 @@ def model_in_pytensor(time, Fluence, Surface, thickness, Absorption_coeff, bckg_
     S_back_value = at.switch(at.eq(Surface, 1),  SRVs[1],  SRVs[0])
     
     ## 2 - Mobility and Diffusion
-    einstein_relation = (1.380649e-23*292/1.6021766e-19)
-    limit_mobility = (thickness*1e-7)**2/(at.abs(time[1]-time[0]))/einstein_relation  #cm2 (Vs)-1
-    min_mobility = (thickness*1e-7)**2/(at.abs(time[-1]))/einstein_relation * 4 #cm2 (Vs)-1
-    mu_vert = pm.Deterministic('mu_vert', 10**(at.log10(min_mobility) + (at.log10(limit_mobility) - at.log10(min_mobility))* pm.Beta('mu_fact', 2, 2)))
-    Diffusion_coefficient = pm.Deterministic('Diffusion_coefficient', mu_vert*einstein_relation)*1e8
-
+    Diffusion_coefficient = pm.LogNormal('Diffusion_coefficient', -2, 3)*1e8
+    pm.Deterministic('mu_vert', Diffusion_coefficient/(1.380649e-23*292/1.6021766e-19)*1e-8)
+     
     
     ## 3 - Radiative and Non-Radiative Recombination 
     k_rad = pm.Deterministic('k_rad', 5e-9/(1+pm.LogNormal('k_rad_model_fact', 2, 2)))*1e12
@@ -258,8 +256,8 @@ def model_in_pytensor(time, Fluence, Surface, thickness, Absorption_coeff, bckg_
     
     # Non-radiative bulk recombination rate (s^-1)
     k_deep = pm.LogNormal("k_deep", 10, 1)
-    k_c = pm.Deterministic("k_capture", k_deep * (0.01+pm.LogNormal('k_cd_ratio', 1, 1)))
-    k_e = pm.LogNormal("k_emission", 10, 1)
+    k_c = pm.Deterministic("k_capture", k_deep * (0.01+pm.LogNormal('k_cd_ratio', 1, 1))) * sh_defect
+    k_e = pm.LogNormal("k_emission", 10, 1) * sh_defect
 
     # Packing parameters
     params = k_c, k_deep, k_e, 0, 0, k_rad, Diffusion_coefficient
@@ -269,18 +267,19 @@ def model_in_pytensor(time, Fluence, Surface, thickness, Absorption_coeff, bckg_
     generation = at.exp(-Absorption_coeff*z_array)
     generation_sum = at.sum(((generation[1:] + generation[:-1])/2), axis=0) * ds
     n_0z = at.outer(Fluence/(generation_sum), generation)
-    
+
+    x_size = at.zeros(shape=(at.shape(n_0z)[1],at.shape(n_0z)[1]))
     
     ### Simulate transient, radiative recombination
     result_all_samples, _ = pytensor.scan(fn=loop_over_samples,
                                                 sequences=[n_0z, S_front_value, S_back_value, PN_eq],
                                                 outputs_info=[at.zeros(shape=(at.shape(time),at.shape(n_0z[0,:])))],
-                                                non_sequences=[ds, dt, params])
+                                                non_sequences=[ds, dt, x_size, params])
 
     
     ### Turn radiative recombination into PL response
     ## Add PL error parameter
-    PL_err = bckg_list
+    PL_err = bckg_list*0
     PL_err_2d = at.outer(PL_err, at.ones(shape=at.shape(time)))
     
     Rrad_calc = result_all_samples
@@ -295,24 +294,26 @@ def model_in_pytensor(time, Fluence, Surface, thickness, Absorption_coeff, bckg_
     return PL_obs, no_of_params
     
 
-def pymc_model(y_combined, sigmas, time, Fluence, Surface, Thickness, Absorption_coeff, tune_no, draws_no, cores_no, bckg_list, PN_on_off, diffusion_on_off):
-
+def pymc_model(y_combined, sigmas, time, Fluence, Surface, Thickness, Absorption_coeff, tune_no, draws_no, cores_no, bckg_list, PN_on_off, diffusion_on_off, sh_defect):
+    
     pymc_model = pm.Model()
     
     with pymc_model:
                        
         #### Simulation of Time-Resolved PL
-        N_calc, no_of_params = model_in_pytensor(shared(time), shared(Fluence*1e-8), Surface, Thickness, shared(Absorption_coeff[0]*1e-4), at.as_tensor_variable(bckg_list), PN_on_off, diffusion_on_off)
+        N_calc, no_of_params = model_in_pytensor(shared(time), shared(Fluence*1e-8), Surface, Thickness, shared(Absorption_coeff[0]*1e-4), at.as_tensor_variable(bckg_list), PN_on_off, diffusion_on_off, sh_defect)
                         
         pm.Deterministic('N_calc_collect', N_calc)
         
-        sigma = sigmas * (2+99*pm.Beta('sigma_fact', 3,3))
-    
-        Log_likelihood = ((at.sqrt(N_calc) - np.sqrt(y_combined))**2)/(2*sigma**2)
+        #sigma = sigmas *(2+9*pm.Beta('sigma_fact', 4,4))
+        
+        sigma = (y_combined) *(1+10*pm.Beta('sigma_fact', 1,1))
+        
+        Log_likelihood = (((N_calc) - (y_combined))**2)/(2*sigma**2)
         
         pm.Deterministic('Logp', at.sum(Log_likelihood))        
         
-        Y_obs = pm.Normal('Y_obs', mu=at.sqrt(N_calc), sigma = sigma, observed = np.sqrt(y_combined))
+        Y_obs = pm.Normal('Y_obs', mu=(N_calc), sigma = sigma, observed = (y_combined))
         
         #### Draw Samples from the Posterior Distribution
         print("Bayes-MCMC Sampling Running...")
@@ -320,7 +321,8 @@ def pymc_model(y_combined, sigmas, time, Fluence, Surface, Thickness, Absorption
 
         ### Un-comment, if you want to use Metropolis-Hastings algorithm (recommended for testing)
         #trace = pm.sample(step=pm.Metropolis(),  chains=cores_no, draws=draws_no, cores=cores_no, tune=tune_no)
-        trace = pm.sample(chains=cores_no, draws=draws_no, cores=cores_no, tune=tune_no, discard_tuned_samples=False)
+        trace = pm.sample(chains=cores_no, draws=draws_no, cores=cores_no, tune=tune_no, discard_tuned_samples=False)#, 
+                          #nuts = {"max_treedepth": 4, "early_max_treedepth": 3})
     
     return trace
 
@@ -330,47 +332,18 @@ def pymc_model(y_combined, sigmas, time, Fluence, Surface, Thickness, Absorption
 #### Main Part ####
 ###################
 
-def run_bayesian_inference(df, max_arg, spacing, Fluence, Surface, Thickness, Absorption_coeff, tune_no, draws_no, cores_no, folder, config_name, laserpower_file, PN_on_off, diffusion_on_off):
+def run_bayesian_inference(df, max_arg, spacing, Fluence, Surface, Thickness, Absorption_coeff, tune_no, draws_no, cores_no, folder, config_name, laserpower_file, PN_on_off, diffusion_on_off, sh_defect):
 
 
     a = spacing_choose(spacing, max_arg)
 
     time, y_combined, sigmas, bckg_list = setup_data_for_inference(df, a, Surface)
     
-    trace = pymc_model(y_combined, sigmas, time, Fluence, Surface, Thickness, Absorption_coeff, tune_no, draws_no, cores_no, bckg_list, PN_on_off, diffusion_on_off)
+    trace = pymc_model(y_combined, sigmas, time, Fluence, Surface, Thickness, Absorption_coeff, tune_no, draws_no, cores_no, bckg_list, PN_on_off, diffusion_on_off, sh_defect)
     
     print("Bayes-MCMC done!")
     print(" ")
 
-    save_trace(trace, folder, config_name, spacing, laserpower_file, 0 , bckg_list, PN_on_off, diffusion_on_off)
+    save_trace(trace, folder, config_name, spacing, laserpower_file, 0 , bckg_list, PN_on_off, diffusion_on_off, sh_defect)
     
     return trace
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

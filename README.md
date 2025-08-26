@@ -13,10 +13,14 @@ values with another methodology in a first instance.
 
 ## Getting Started
 ### Installation and Usage
-Install the [Pymc5](https://www.pymc.io/projects/docs/en/latest/installation.html) package in a new Python (version 3.10) environment using conda-forge (follow the instructions on the Pymc website).
-Activate the environment and install jupyter notebook using
+Install the [Pymc5](https://www.pymc.io/projects/docs/en/latest/installation.html) package in a new Python (version 3.10) environment using conda-forge (replace ```<name_env>``` with your own):
 ```
-conda install -c conda-forge notebook
+conda create -n <name_env> pymc -c conda-forge
+conda activate <name_env>
+```
+Then install jupyter notebook using
+```
+conda install notebook -c conda-forge 
 ```
 Using the command line, navigate to the cloned repository and run
 

@@ -46,7 +46,7 @@ def unpack_Data(FileName):
         for line in lines:
             # check if string present on a current line
             word = b'Time [ns]'
-            if word in line:
+            if word in line:#line.find(word) != -1:
                 rows_to_skip = lines.index(line)+1
 
 
@@ -227,44 +227,3 @@ def Bayes_TRPL_Utils(data_folder_trpl, config_file_name, laserpower_file):
 
     print('Files ready...')
     return df, pile_up, sample_name, Fluence, Thickness, Surface, Absorption_coeff, amax
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -3,10 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import pymc as pm
 import datetime
-import pytensor.tensor as at
-from pytensor import *
-from pytensor import config
-config.allow_gc = False
 
 
 from scipy.interpolate import UnivariateSpline
@@ -111,16 +107,21 @@ def setup_data_for_inference(Data_fit, a, Surface):
 
 
 def X_n_maker(d_factor, x_size, dx, D, Sf, Sb):
-    
-    Xn_1 = at.extra_ops.fill_diagonal_offset(x_size, d_factor, -1)
-    
-    Xn_2a = at.extra_ops.fill_diagonal_offset(x_size, 1-2.*d_factor, 0)
-    Xn_2a1 = at.set_subtensor(Xn_2a[0,0],1-d_factor - (dx/D)*d_factor *Sf)
-    Xn_2 = at.set_subtensor(Xn_2a1[-1,-1],1-d_factor - (dx/D)*d_factor *Sb)
-    
-    Xn_3 = at.extra_ops.fill_diagonal_offset(x_size, d_factor, 1)
-    
-    return Xn_1 + Xn_2 + Xn_3
+    # Create a zero matrix
+    Xn = np.zeros((x_size, x_size))
+
+    # Fill the main diagonal
+    np.fill_diagonal(Xn, 1 - 2 * d_factor)
+
+    # Fill the diagonals above and below the main diagonal
+    np.fill_diagonal(Xn[1:], d_factor)
+    np.fill_diagonal(Xn[:,1:], d_factor)
+
+    # Adjust the first and last diagonal elements for boundary conditions
+    Xn[0, 0] = 1 - d_factor - (dx / D) * d_factor * Sf
+    Xn[-1, -1] = 1 - d_factor - (dx / D) * d_factor * Sb
+
+    return Xn
 
 
 ### First: Define Rate equations
@@ -162,20 +163,20 @@ def total_recombination_rate(dt_current, n_dens, p_dens, ds, x_size, params):
     # a. Recombination (Runge-Kutta Algorithm)
     nt = p_dens - n_dens
     Ruku_n, Ruku_nt  = Runge_Kutta_R4(n_dens, nt, dt_current, params)
-    
+
     # b. Diffusion
-    d_factor = D*dt_current/(2*ds*ds)
+    d_factor = D * dt_current / (2 * ds * ds)
     A_n = X_n_maker(-d_factor, x_size, ds, D, S_f, S_b)
     B_n = X_n_maker(d_factor, x_size, ds, D, S_f, S_b)
 
-    Bn_dot_n_dens = at.dot(B_n, n_dens) + Ruku_n*dt_current
-    n_dens_new = at.dot(at.linalg.inv(A_n), Bn_dot_n_dens)
+    Bn_dot_n_dens = np.dot(B_n, n_dens) + Ruku_n * dt_current
+    n_dens_new = np.linalg.solve(A_n, Bn_dot_n_dens)
 
     # c. Physical limits
-    n_dens_new = at.switch(at.le(n_dens_new, 0), 0, n_dens_new)
-    p_dens_new = n_dens_new + nt + Ruku_nt*dt_current
-    p_dens_new = at.switch(at.le(p_dens_new, 0), 0, p_dens_new)
-    
+    n_dens_new = np.where(n_dens_new <= 0, 0, n_dens_new)
+    p_dens_new = n_dens_new + nt + Ruku_nt * dt_current
+    p_dens_new = np.where(p_dens_new <= 0, 0, p_dens_new)
+
     return n_dens_new, p_dens_new
 
 

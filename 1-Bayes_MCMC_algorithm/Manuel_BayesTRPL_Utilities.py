@@ -4,8 +4,6 @@ folder = os.getcwd()
 
 import numpy as np
 import pandas as pd
-import pymc as pm
-
 
 
 def cut_data(Data, time):
